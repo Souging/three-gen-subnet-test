@@ -62,7 +62,7 @@ async def _complete_one_task(
             validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
 
-    bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
+    bt.logging.debug(f"GPU {generate_url} Task received. Prompt: {pull.task.prompt}.")
 
     results = await _generate(generate_url, pull.task.prompt) or ""
 
@@ -131,7 +131,7 @@ def _log_feedback(validator_uid: int, submit: SubmitResults) -> None:
     if feedback is None:
         return
     score = "failed" if feedback.validation_failed else feedback.task_fidelity_score
-    bt.logging.debug(f"Feedback received from [{validator_uid}]. Prompt: {submit.task.prompt}. Score: {score}")
+    bt.logging.debug(f"GPU {generate_url}  Feedback received from [{validator_uid}]. Prompt: {submit.task.prompt}. Score: {score}")
     bt.logging.debug(
         f"Average score: {feedback.average_fidelity_score}. "
         f"Accepted results (last 4h): {feedback.generations_within_the_window}. "
