@@ -1,0 +1,21 @@
+module.exports = {
+  apps : [
+  {
+    name: 'generation1', // 应用程序名称，必须唯一
+    script: 'serve.py', // 要运行的脚本
+    interpreter: '/root/miniconda3/envs/three-gen-mining/bin/python', // Python 解释器路径
+    args: '--port 8093', // 传递给脚本的参数
+    env: { // 环境变量
+      "CUDA_VISIBLE_DEVICES": "0"
+    }
+  },
+  {
+    name: 'generation2', // 应用程序名称，必须唯一
+    script: 'serve.py',
+    interpreter: '/root/miniconda3/envs/three-gen-mining/bin/python',
+    args: '--port 8094', // 注意端口不同
+    env: {
+      "CUDA_VISIBLE_DEVICES": "1" // 使用 CUDA 设备 1
+    }
+  }]
+};
