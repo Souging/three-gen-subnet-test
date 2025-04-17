@@ -1,0 +1,8 @@
+module.exports = {
+  apps : [{
+    name: 'miner',
+    script: 'serve_miner.py',
+    interpreter: '/root/miniconda3/envs/three-gen-neurons/bin/python',
+    args: '--wallet.name sub4 --wallet.hotkey sub4 --subtensor.network ws://159.69.219.238:11144 --netuid 17 --generation.endpoint http://127.0.0.1:8093 --generation.endpoint http://127.0.0.1:8094 --generation.endpoint http://127.0.0.1:8095 --generation.endpoint http://127.0.0.1:8096 --generation.endpoint http://127.0.0.1:8097 --generation.endpoint http://127.0.0.1:8098 --generation.endpoint http://127.0.0.1:8099 --generation.endpoint http://127.0.0.1:8100  --logging.debug '
+  }]
+};
