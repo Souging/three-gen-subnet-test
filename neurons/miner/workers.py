@@ -23,7 +23,6 @@ FAILED_VALIDATOR_DELAY = 300
 
 
 def mp4_to_bytes_open(file_path):
-  """使用 open() 读取 MP4 文件为 bytes."""
   try:
     with open(file_path, 'rb') as f:
       video_bytes = f.read()
@@ -97,8 +96,8 @@ async def _complete_one_task(
 		seed=random_seed,
 		ss_guidance_strength=7.5,
 		ss_sampling_steps=24,
-		slat_guidance_strength=3.0,
-		slat_sampling_steps=24,
+		slat_guidance_strength=3.5,
+		slat_sampling_steps=20,
 		api_name="/image_to_3d"
     )
     vpath = vresult["video"]
