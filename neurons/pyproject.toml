@@ -11,6 +11,7 @@ bittensor = { version = "9.0.0" }
 bittensor-wallet = { version = "3.0.3" }
 zstandard = { version = "0.23.0" }
 pybase64 = { version = "1.4.0" }
+gradio_client =  { version = "1.8.0" }
 pyspz = { git = "https://github.com/404-Repo/spz.git", tag = "0.1" }
 
 [tool.poetry.group.dev.dependencies]
@@ -20,6 +21,7 @@ bandit = { version = "1.8.0" }
 black = { version = "24.10.0" }
 mypy = { version = "1.13.0" }
 ruff = { version = "0.8.1" }
+
 time-machine = { version = "2.16.0" }
 types-requests = { version = "2.32.*" }
 pytest-asyncio = { version = "0.24.0" }
