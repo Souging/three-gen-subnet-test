@@ -97,8 +97,8 @@ def generate_flux_image(
         guidance_scale=guidance_scale,
         negative_prompt="ugly, bad anatomy, blurry, pixelated obscure, unnatural colors, poor lighting, dull, and unclear, cropped, lowres, low quality, artifacts, duplicate, morbid, mutilated, poorly drawn face, deformed, dehydrated, bad proportions",
         num_inference_steps=NUM_INFERENCE_STEPS,
-        width=width,
-        height=height,
+        width=1088,
+        height=1088,
         generator=generator,
     ).images[0]
     
@@ -136,14 +136,20 @@ def image_to_3d(
             "cfg_strength": slat_guidance_strength,
         },
     )
-    video = render_utils.render_video(outputs['gaussian'][0], num_frames=200,camera_params={"radius": 3.5})['color']
+    # 保存高斯点云为 .ply
+    ply_path = os.path.join(user_dir, 'point_cloud.ply')
+    gaussian_data = outputs['gaussian'][0]
+    with open(ply_path, "wb") as f:
+        gaussian_data.save_ply(f)  # 直接调用
+
+
     #video_geo = render_utils.render_video(outputs['mesh'][0], num_frames=200)['normal']
     #video = [np.concatenate([video[i], video_geo[i]], axis=1) for i in range(len(video))]
-    video_path = os.path.join(user_dir, 'sample.mp4')
-    imageio.mimsave(video_path, video, fps=25)
+    #video_path = os.path.join(user_dir, 'sample.mp4')
+    #imageio.mimsave(video_path, video, fps=24)
     state = pack_state(outputs['gaussian'][0], outputs['mesh'][0])
     torch.cuda.empty_cache()
-    return state, video_path
+    return state, ply_path#,video_path
 
 #@spaces.GPU(duration=90)
 def extract_glb(
