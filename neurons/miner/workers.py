@@ -22,7 +22,6 @@ FAILED_VALIDATOR_DELAY = 300
 
 
 def mp4_to_bytes_open(file_path):
-  """使用 open() 读取 MP4 文件为 bytes."""
   try:
     with open(file_path, 'rb') as f:
       video_bytes = f.read()
