@@ -82,8 +82,8 @@ async def _complete_one_task(
 		prompt=pull.task.prompt,
 		seed=42,
 		randomize_seed=True,
-		width=1024,
-		height=1024,
+		width=1280,
+		height=1280,
 		guidance_scale=3.5,
 		api_name="/generate_flux_image"
     )
@@ -91,10 +91,10 @@ async def _complete_one_task(
     vresult = client.predict(
 		image=handle_file(images),
 		seed=42,
-		ss_guidance_strength=7.5,
-		ss_sampling_steps=16,
-		slat_guidance_strength=3,
-		slat_sampling_steps=16,
+		ss_guidance_strength=8,
+		ss_sampling_steps=32,
+		slat_guidance_strength=4,
+		slat_sampling_steps=24,
 		api_name="/image_to_3d"
     )
     vpath = vresult["video"]
