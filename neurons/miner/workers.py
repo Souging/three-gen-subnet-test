@@ -3,7 +3,7 @@ import base64
 import time
 import typing
 import urllib.parse
-
+from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
 import pyspz
@@ -17,6 +17,9 @@ from miner import ValidatorSelector
 
 NETWORK_DELAY_TIME_BUFFER = 60
 FAILED_VALIDATOR_DELAY = 300
+
+
+
 
 
 async def worker_routine(
@@ -36,7 +39,6 @@ async def _complete_one_task(
     if validator_uid is None:
         await asyncio.sleep(10.0)
         return
-
     # Setting cooldown to prevent selecting the same validator for concurrent task.
     validator_selector.set_cooldown(validator_uid, int(time.time()) + 300)
 
@@ -62,10 +64,31 @@ async def _complete_one_task(
             validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
 
-    bt.logging.debug(f"GPU {generate_url} Task received. Prompt: {pull.task.prompt}.")
+    bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
 
-    results = await _generate(generate_url, pull.task.prompt) or ""
+    #results = await _generate(generate_url, pull.task.prompt) or ""
+    client = Client("http://86.38.182.35:44549/")
+    images = client.predict(
+		prompt=pull.task.prompt,
+		seed=42,
+		randomize_seed=True,
+		width=1024,
+		height=1024,
+		guidance_scale=3.5,
+		api_name="/generate_flux_image"
+    )
 
+    vresult = client.predict(
+		image=handle_file(images),
+		seed=42,
+		ss_guidance_strength=7.5,
+		ss_sampling_steps=12,
+		slat_guidance_strength=3,
+		slat_sampling_steps=12,
+		api_name="/image_to_3d"
+    )
+    vpath = vresult["video"]
+    results = mp4_to_bytes_open(vpath)
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, results)
         if submit.feedback is None:
@@ -91,7 +114,18 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     )
     return response
 
-
+def mp4_to_bytes_open(file_path):
+  """使用 open() 读取 MP4 文件为 bytes."""
+  try:
+    with open(file_path, 'rb') as f:
+      video_bytes = f.read()
+    return video_bytes
+  except FileNotFoundError:
+    print(f"Error: File not found at {file_path}")
+    return None
+  except Exception as e:
+    print(f"Error reading file: {e}")
+    return None
 async def _submit_results(
     wallet: bt.wallet,
     dendrite: bt.dendrite,
