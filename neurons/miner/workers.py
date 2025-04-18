@@ -7,6 +7,7 @@ from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
 import pyspz
+import random
 from aiohttp import ClientTimeout
 from aiohttp.helpers import sentinel
 from common.miner_license_consent_declaration import MINER_LICENSE_CONSENT_DECLARATION
@@ -22,6 +23,7 @@ FAILED_VALIDATOR_DELAY = 300
 
 
 def mp4_to_bytes_open(file_path):
+  """使用 open() 读取 MP4 文件为 bytes."""
   try:
     with open(file_path, 'rb') as f:
       video_bytes = f.read()
@@ -77,10 +79,11 @@ async def _complete_one_task(
     bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
 
     #results = await _generate(generate_url, pull.task.prompt) or ""
+    random_seed = random.randint(0, 2**32 - 1)
     client = Client("http://86.38.182.35:44549/")
     images = client.predict(
 		prompt=pull.task.prompt,
-		seed=42,
+		seed=random_seed,
 		randomize_seed=True,
 		width=1280,
 		height=1280,
@@ -88,12 +91,13 @@ async def _complete_one_task(
 		api_name="/generate_flux_image"
     )
     bt.logging.debug(f"images received. : {images}.")
+    random_seed = random.randint(0, 2**32 - 1)
     vresult = client.predict(
 		image=handle_file(images),
-		seed=42,
-		ss_guidance_strength=8,
-		ss_sampling_steps=32,
-		slat_guidance_strength=4,
+		seed=random_seed,
+		ss_guidance_strength=7.5,
+		ss_sampling_steps=24,
+		slat_guidance_strength=3.0,
 		slat_sampling_steps=24,
 		api_name="/image_to_3d"
     )
