@@ -21,7 +21,18 @@ FAILED_VALIDATOR_DELAY = 300
 
 
 
-
+def mp4_to_bytes_open(file_path):
+  """使用 open() 读取 MP4 文件为 bytes."""
+  try:
+    with open(file_path, 'rb') as f:
+      video_bytes = f.read()
+    return video_bytes
+  except FileNotFoundError:
+    print(f"Error: File not found at {file_path}")
+    return None
+  except Exception as e:
+    print(f"Error reading file: {e}")
+    return None
 async def worker_routine(
     endpoint: str, wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
@@ -77,18 +88,21 @@ async def _complete_one_task(
 		guidance_scale=3.5,
 		api_name="/generate_flux_image"
     )
-
+    bt.logging.debug(f"images received. : {images}.")
     vresult = client.predict(
 		image=handle_file(images),
 		seed=42,
 		ss_guidance_strength=7.5,
-		ss_sampling_steps=12,
+		ss_sampling_steps=16,
 		slat_guidance_strength=3,
-		slat_sampling_steps=12,
+		slat_sampling_steps=16,
 		api_name="/image_to_3d"
     )
     vpath = vresult["video"]
+    
     results = mp4_to_bytes_open(vpath)
+    bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
+
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, results)
         if submit.feedback is None:
@@ -114,18 +128,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     )
     return response
 
-def mp4_to_bytes_open(file_path):
-  """使用 open() 读取 MP4 文件为 bytes."""
-  try:
-    with open(file_path, 'rb') as f:
-      video_bytes = f.read()
-    return video_bytes
-  except FileNotFoundError:
-    print(f"Error: File not found at {file_path}")
-    return None
-  except Exception as e:
-    print(f"Error reading file: {e}")
-    return None
+
 async def _submit_results(
     wallet: bt.wallet,
     dendrite: bt.dendrite,
