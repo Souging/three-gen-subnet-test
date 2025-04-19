@@ -60,7 +60,7 @@ async def _complete_one_task(
             bt.logging.warning(
                 f"Failed to get task from [{metagraph.hotkeys[validator_uid]}]. Reason: {pull.dendrite.status_message}."
             )
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + FAILED_VALIDATOR_DELAY)
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 100)
             return
 
     if pull.task is None:
@@ -124,7 +124,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     response = typing.cast(
         PullTask,
         await dendrite.call(
-            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=12.0
+            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=20.0
         ),
     )
     return response
