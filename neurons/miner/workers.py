@@ -7,6 +7,7 @@ from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
 import pyspz
+from openai import OpenAI
 import random
 from aiohttp import ClientTimeout
 from aiohttp.helpers import sentinel
@@ -76,7 +77,6 @@ async def _complete_one_task(
         return
 
     bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
-
     random_seed = random.randint(0, 2**32 - 1)
     client = Client(generate_url)
     images = client.predict(
