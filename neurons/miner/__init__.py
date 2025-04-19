@@ -59,8 +59,13 @@ class Miner:
             f"Running neuron on subnet {self.config.netuid} with uid {self.uid} "
             f"using network: {self.subtensor.chain_endpoint}"
         )
+        self.validator_selector=[]
 
-        self.validator_selector = ValidatorSelector(self.metagraph, self.config.neuron.min_stake_to_set_weights)
+        for uid in self.config.neuron.vailuid:
+            self.validator_selector.append(
+                ValidatorSelector(self.metagraph, self.config.neuron.min_stake_to_set_weights, uid)
+            )
+        
 
     def _self_check_for_registration(self) -> None:
         if not self.subtensor.is_hotkey_registered(
@@ -73,10 +78,12 @@ class Miner:
             )
 
     async def run(self) -> None:
-        bt.logging.debug("Starting the workers.")
+        bt.logging.debug(f"Starting the workers. {self.config.generation.endpoints[0]}")
+        for i in range(len(self.validator_selector)):
+            asyncio.create_task(worker_routine(self.config.generation.endpoints[0], self.wallet, self.metagraph, self.validator_selector[i]))
 
-        for endpoint in self.config.generation.endpoints:
-            asyncio.create_task(worker_routine(endpoint, self.wallet, self.metagraph, self.validator_selector))
+        #for endpoint in self.config.generation.endpoints:
+        #    asyncio.create_task(worker_routine(endpoint, self.wallet, self.metagraph, self.validator_selector))
 
         bt.logging.debug("Starting the miner.")
 
