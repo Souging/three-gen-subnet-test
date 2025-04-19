@@ -82,13 +82,14 @@ async def _complete_one_task(
     client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="*********",)
 
 
+
     completion = client.chat.completions.create(model="qwen/qwen2.5-vl-72b-instruct",
         messages=[
         {
         "role": "system",
-        "content": "You are a 3D modeling expert.Optimize the following prompt for a single 3D model image (no scene, English only). Return ONLY the optimized prompt, no explanations. Rules: 1) Single object 2) No background/environment 3) Use PBR materials 4) Specify style (photorealistic/stylized/low-poly)"
+        "content": "You are a professional 3D artist specializing in optimizing prompts for flux_image. Enhance the user-provided prompt for 3D generation by adding details about materials, lighting, and composition. Return ONLY the optimized prompt text, without any additional explanations or formatting.rules 1. No background "#2. Use PBR materials 
         },{
-            "role": "user","content": pull.task.prompt
+            "role": "user","content": f"Optimize this prompt for 3D generation: {pull.task.prompt}"
         }
         ],temperature=0.7,max_tokens=150
     )
