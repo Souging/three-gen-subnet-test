@@ -7,7 +7,6 @@ from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
 import pyspz
-from openai import OpenAI
 import random
 from aiohttp import ClientTimeout
 from aiohttp.helpers import sentinel
@@ -20,7 +19,7 @@ from miner import ValidatorSelector
 NETWORK_DELAY_TIME_BUFFER = 60
 FAILED_VALIDATOR_DELAY = 300
 
-#rm -rf /tmp/gradio
+#/tmp/gradio
 
 
 def mp4_to_bytes_open(file_path):
@@ -37,11 +36,11 @@ def mp4_to_bytes_open(file_path):
 async def worker_routine(
     endpoint: str, wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
-    bt.logging.info(f"Worker ({endpoint}) started")
+    #bt.logging.info(f"Worker ({endpoint}) started")
     generate_url = urllib.parse.urljoin(endpoint, "/generate/")
 
     while True:
-        await _complete_one_task(generate_url, wallet, metagraph, validator_selector)
+        await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
 
 
 async def _complete_one_task(
@@ -78,35 +77,18 @@ async def _complete_one_task(
 
     bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
 
-    #results = await _generate(generate_url, pull.task.prompt) or ""
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="*********",)
-
-
-
-    completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",
-        messages=[
-        {
-        "role": "system",
-        "content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Through association, add details about materials, lighting, and details to the 3D image generation prompts provided by users. Only return the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR materials based on the described object 3. Do not deviate from the object described in the original prompt"
-        },{
-            "role": "user","content": f"Optimize this prompt for 3D generation: {pull.task.prompt}"
-        }
-        ],temperature=0.7,max_tokens=150
-    )
-    promptrez = completion.choices[0].message.content
-    bt.logging.debug(f"promptrez: {promptrez}.")
     random_seed = random.randint(0, 2**32 - 1)
-    client = Client("http://86.*.*.35:*****/")
+    client = Client(generate_url)
     images = client.predict(
-		prompt=promptrez,
+		prompt=pull.task.prompt,
 		seed=random_seed,
 		randomize_seed=True,
 		width=1280,
 		height=1280,
-		guidance_scale=8.5,
+		guidance_scale=8.0,
 		api_name="/generate_flux_image"
     )
-    bt.logging.debug(f"images received. : {images}.")
+    #bt.logging.debug(f"images received. : {images}.")
     random_seed = random.randint(0, 2**32 - 1)
     vresult = client.predict(
 		image=handle_file(images),
@@ -120,7 +102,7 @@ async def _complete_one_task(
     vpath = vresult["video"]
     
     results = mp4_to_bytes_open(vpath)
-    bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
+    #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
 
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, results)
@@ -131,7 +113,7 @@ async def _complete_one_task(
             )
             validator_selector.set_cooldown(validator_uid, int(time.time()) + FAILED_VALIDATOR_DELAY)
             return
-    bt.logging.debug(f"submit: {submit}.")
+    #bt.logging.debug(f"submit: {submit}.")
     _log_feedback(validator_uid, submit)
 
     validator_selector.set_cooldown(validator_uid, submit.cooldown_until)
@@ -164,12 +146,12 @@ async def _submit_results(
     )
     signature = base64.b64encode(dendrite.keypair.sign(message)).decode(encoding="utf-8")
     if results:
-        #compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        compressed_results = base64.b64encode(results).decode(encoding="utf-8")
+        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        #compressed_results = base64.b64encode(results).decode(encoding="utf-8")
     else:
         compressed_results = ""  # Skipping task not to be penalized (same could be done for low quality results)
     synapse = SubmitResults(
-        task=pull.task, results=compressed_results, compression=0, submit_time=submit_time, signature=signature
+        task=pull.task, results=compressed_results, compression=2, submit_time=submit_time, signature=signature
     )
     response = typing.cast(
         SubmitResults,
