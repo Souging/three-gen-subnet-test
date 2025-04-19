@@ -29,9 +29,9 @@ class ValidatorSelector:
         current_time = int(time.time())
         metagraph: bt.metagraph = self._metagraph_ref()
 
-        if self._query_subnet_owner(current_time):
-            bt.logging.debug("Querying task from the subnet owner")
-            return self._owner_uid
+        #if self._query_subnet_owner(current_time):
+        #    bt.logging.debug("Querying task from the subnet owner")
+        #    return self._owner_uid
 
         start_uid = self._uid
         while True:
