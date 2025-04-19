@@ -7,6 +7,7 @@ from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
 import pyspz
+from openai import OpenAI
 import random
 from aiohttp import ClientTimeout
 from aiohttp.helpers import sentinel
@@ -23,7 +24,6 @@ FAILED_VALIDATOR_DELAY = 300
 
 
 def mp4_to_bytes_open(file_path):
-  """使用 open() 读取 MP4 文件为 bytes."""
   try:
     with open(file_path, 'rb') as f:
       video_bytes = f.read()
@@ -79,10 +79,25 @@ async def _complete_one_task(
     bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
 
     #results = await _generate(generate_url, pull.task.prompt) or ""
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="*********",)
+
+
+    completion = client.chat.completions.create(model="qwen/qwen2.5-vl-72b-instruct",
+        messages=[
+        {
+        "role": "system",
+        "content": "You are a 3D modeling expert.Optimize the following prompt for a single 3D model image (no scene, English only). Return ONLY the optimized prompt, no explanations. Rules: 1) Single object 2) No background/environment 3) Use PBR materials 4) Specify style (photorealistic/stylized/low-poly)"
+        },{
+            "role": "user","content": pull.task.prompt
+        }
+        ]
+    )
+    promptrez = completion.choices[0].message.content
+    bt.logging.debug(f"promptrez: {promptrez}.")
     random_seed = random.randint(0, 2**32 - 1)
-    client = Client("http://86.38.182.35:44549/")
+    client = Client("http://86.*.*.35:*****/")
     images = client.predict(
-		prompt=pull.task.prompt,
+		prompt=promptrez,
 		seed=random_seed,
 		randomize_seed=True,
 		width=1280,
@@ -115,7 +130,7 @@ async def _complete_one_task(
             )
             validator_selector.set_cooldown(validator_uid, int(time.time()) + FAILED_VALIDATOR_DELAY)
             return
-
+    bt.logging.debug(f"submit: {submit}.")
     _log_feedback(validator_uid, submit)
 
     validator_selector.set_cooldown(validator_uid, submit.cooldown_until)
