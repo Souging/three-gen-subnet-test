@@ -4,6 +4,7 @@ from gradio_litmodel3d import LitModel3D
 import os
 import shutil
 import random
+from openai import OpenAI
 import uuid
 from datetime import datetime
 from diffusers import DiffusionPipeline
@@ -92,8 +93,21 @@ def generate_flux_image(
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator(device=device).manual_seed(seed)
     prompt = "wbgmsst, " + prompt + ", 3D isometric, white background"
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-***************",)
+    completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",
+        messages=[
+        {
+        "role": "system",
+        "content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Through association, add details about materials, lighting, and details to the 3D image generation prompts provided by users. Only return the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR materials based on the described object 3. Do not deviate from the object described in the original prompt"
+        },{
+            "role": "user","content": f"Optimize this prompt for 3D generation: {pull.task.prompt}"
+        }
+        ],temperature=0.7,max_tokens=150
+    )
+    promptrez = completion.choices[0].message.content
+
     image = flux_pipeline(
-        prompt=prompt,
+        prompt=promptrez,
         guidance_scale=guidance_scale,
         negative_prompt="ugly, bad anatomy, blurry, pixelated obscure, unnatural colors, poor lighting, dull, and unclear, cropped, lowres, low quality, artifacts, duplicate, morbid, mutilated, poorly drawn face, deformed, dehydrated, bad proportions",
         num_inference_steps=NUM_INFERENCE_STEPS,
@@ -136,11 +150,11 @@ def image_to_3d(
             "cfg_strength": slat_guidance_strength,
         },
     )
-    # 保存高斯点云为 .ply
+
     ply_path = os.path.join(user_dir, 'point_cloud.ply')
     gaussian_data = outputs['gaussian'][0]
     with open(ply_path, "wb") as f:
-        gaussian_data.save_ply(f)  # 直接调用
+        gaussian_data.save_ply(f) 
 
 
     #video_geo = render_utils.render_video(outputs['mesh'][0], num_frames=200)['normal']
@@ -312,4 +326,4 @@ if __name__ == "__main__":
     except:
         pass
     
-    demo.launch(show_error=True,server_name="0.0.0.0",server_port=8000)
+    demo.launch(show_error=True,server_name="0.0.0.0",server_port=20000)
