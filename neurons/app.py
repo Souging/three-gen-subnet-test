@@ -93,7 +93,7 @@ def generate_flux_image(
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator(device=device).manual_seed(seed)
     prompt = "wbgmsst, " + prompt + ", 3D isometric, white background"
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-***************",)
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-********************",)
     completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",
         messages=[
         {
@@ -104,8 +104,10 @@ def generate_flux_image(
         }
         ],temperature=0.7,max_tokens=150
     )
+    print(f"prompt : {prompt}")
+    
     promptrez = completion.choices[0].message.content
-
+    print(f"prompt after  : {promptrez}")
     image = flux_pipeline(
         prompt=promptrez,
         guidance_scale=guidance_scale,
@@ -150,11 +152,11 @@ def image_to_3d(
             "cfg_strength": slat_guidance_strength,
         },
     )
-
+    # 保存高斯点云为 .ply
     ply_path = os.path.join(user_dir, 'point_cloud.ply')
     gaussian_data = outputs['gaussian'][0]
     with open(ply_path, "wb") as f:
-        gaussian_data.save_ply(f) 
+        gaussian_data.save_ply(f)  # 直接调用
 
 
     #video_geo = render_utils.render_video(outputs['mesh'][0], num_frames=200)['normal']
@@ -326,4 +328,4 @@ if __name__ == "__main__":
     except:
         pass
     
-    demo.launch(show_error=True,server_name="0.0.0.0",server_port=20000)
+    demo.launch(show_error=True,server_name="0.0.0.0",server_port=8000)
