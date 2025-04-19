@@ -90,7 +90,7 @@ async def _complete_one_task(
         },{
             "role": "user","content": pull.task.prompt
         }
-        ]
+        ],temperature=0.7,max_tokens=150
     )
     promptrez = completion.choices[0].message.content
     bt.logging.debug(f"promptrez: {promptrez}.")
