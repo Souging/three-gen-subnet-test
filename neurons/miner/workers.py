@@ -87,11 +87,11 @@ async def _complete_one_task(
         messages=[
         {
         "role": "system",
-        "content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Enhance user-provided 3D image generation prompts by adding details about materials, lighting, shapes, and composition through association. Return only the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR materials based on the described object."
+        "content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Through association, add details about materials, lighting, and details to the 3D image generation prompts provided by users. Only return the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR materials based on the described object 3. Do not deviate from the object described in the original prompt"
         },{
             "role": "user","content": f"Optimize this prompt for 3D generation: {pull.task.prompt}"
         }
-        ],temperature=0.7,max_tokens=100
+        ],temperature=0.7,max_tokens=150
     )
     promptrez = completion.choices[0].message.content
     bt.logging.debug(f"promptrez: {promptrez}.")
