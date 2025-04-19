@@ -4,4 +4,5 @@ websockets==14.2
 zstandard==0.23.0
 pybase64==1.4.0
 gradio_client
+openai 
 git+https://github.com/404-Repo/spz.git@0.1
