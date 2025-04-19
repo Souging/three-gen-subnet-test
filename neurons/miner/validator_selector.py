@@ -8,12 +8,12 @@ from common import owner
 class ValidatorSelector:
     """Encapsulates validator selection."""
 
-    def __init__(self, metagraph: bt.metagraph, min_stake: int) -> None:
+    def __init__(self, metagraph: bt.metagraph, min_stake: int,uid:int) -> None:
         self._metagraph_ref = weakref.ref(metagraph)
         self._min_stake = min_stake
         self._cooldowns: dict[int | None, int] = {}
-        self._next_uid = 0
-
+        self._next_uid = uid
+        self._uid = uid
         # Temporary measure.
         # For test period organic traffic will go only through the subnet owner's validator.
         # Subnet owner's validator will be asked more often for tasks to provide enough throughput.
@@ -33,7 +33,7 @@ class ValidatorSelector:
             bt.logging.debug("Querying task from the subnet owner")
             return self._owner_uid
 
-        start_uid = self._next_uid
+        start_uid = self._uid
         while True:
             if (
                 metagraph.axons[self._next_uid].is_serving
@@ -41,11 +41,11 @@ class ValidatorSelector:
                 and self._cooldowns.get(self._next_uid, 0) < current_time
             ):
                 bt.logging.debug(f"Querying task from [{self._next_uid}]. Stake: {metagraph.S[self._next_uid]}")
-                return self._next_uid
+                return self._uid
 
-            self._next_uid = 0 if self._next_uid + 1 == metagraph.n else self._next_uid + 1
+
             if start_uid == self._next_uid:
-                bt.logging.info("No available validators to pull the task.")
+                bt.logging.info(f"uid:{self._next_uid} No available validators to pull the task.")
                 return None
 
     def set_cooldown(self, validator_uid: int, cooldown_until: int) -> None:
