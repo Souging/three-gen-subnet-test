@@ -12,6 +12,7 @@ bittensor-wallet = { version = "3.0.3" }
 zstandard = { version = "0.23.0" }
 pybase64 = { version = "1.4.0" }
 gradio_client =  { version = "1.8.0" }
+openai =  { version = "1.75.0" }
 pyspz = { git = "https://github.com/404-Repo/spz.git", tag = "0.1" }
 
 [tool.poetry.group.dev.dependencies]
