@@ -20,7 +20,7 @@ from miner import ValidatorSelector
 NETWORK_DELAY_TIME_BUFFER = 60
 FAILED_VALIDATOR_DELAY = 300
 
-#/tmp/gradio
+#rm -rf /tmp/gradio
 
 
 def mp4_to_bytes_open(file_path):
