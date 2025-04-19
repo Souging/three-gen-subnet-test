@@ -83,17 +83,16 @@ async def _complete_one_task(
 
 
 
-    completion = client.chat.completions.create(model="qwen/qwen2.5-vl-72b-instruct",
+    completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",
         messages=[
         {
         "role": "system",
-        "content": "You are a professional 3D artist specializing in optimizing prompts for flux_image. Enhance the user-provided prompt for 3D generation by adding details about materials, lighting, and composition. Return ONLY the optimized prompt text, without any additional explanations or formatting.rules 1. No background 2. Consider whether to use PBR materials based on the described object"
+        "content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Enhance user-provided 3D image generation prompts by adding details about materials, lighting, shapes, and composition through association. Return only the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR materials based on the described object."
         },{
             "role": "user","content": f"Optimize this prompt for 3D generation: {pull.task.prompt}"
         }
-        ],temperature=0.6,max_tokens=100
+        ],temperature=0.7,max_tokens=100
     )
-    prom
     promptrez = completion.choices[0].message.content
     bt.logging.debug(f"promptrez: {promptrez}.")
     random_seed = random.randint(0, 2**32 - 1)
