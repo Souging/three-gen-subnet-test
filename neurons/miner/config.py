@@ -32,7 +32,14 @@ def read_config() -> bt.config:
         "--neuron.min_stake_to_set_weights",
         type=int,
         help="Minimal required stake to set weights.",
-        default=1000,
+        default=10000,
+    )
+    parser.add_argument(
+        "--neuron.vailuid",
+        type=int,
+        nargs="*",
+        help="Minimal required stake to set weights.",
+        default=[49,212,81,160,180,27,4,124,142,128],
     )
 
     parser.add_argument(
