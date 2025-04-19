@@ -37,7 +37,7 @@ class ValidatorSelector:
         while True:
             if (
                 metagraph.axons[self._next_uid].is_serving
-                and metagraph.S[self._next_uid] >= self._min_stake
+                #and metagraph.S[self._next_uid] >= self._min_stake
                 and self._cooldowns.get(self._next_uid, 0) < current_time
             ):
                 bt.logging.debug(f"Querying task from [{self._next_uid}]. Stake: {metagraph.S[self._next_uid]}")
