@@ -19,10 +19,11 @@ from miner import ValidatorSelector
 NETWORK_DELAY_TIME_BUFFER = 60
 FAILED_VALIDATOR_DELAY = 300
 
-
+#/tmp/gradio
 
 
 def mp4_to_bytes_open(file_path):
+  """使用 open() 读取 MP4 文件为 bytes."""
   try:
     with open(file_path, 'rb') as f:
       video_bytes = f.read()
@@ -86,7 +87,7 @@ async def _complete_one_task(
 		randomize_seed=True,
 		width=1280,
 		height=1280,
-		guidance_scale=3.5,
+		guidance_scale=8.5,
 		api_name="/generate_flux_image"
     )
     bt.logging.debug(f"images received. : {images}.")
@@ -147,11 +148,12 @@ async def _submit_results(
     )
     signature = base64.b64encode(dendrite.keypair.sign(message)).decode(encoding="utf-8")
     if results:
-        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        #compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        compressed_results = base64.b64encode(results).decode(encoding="utf-8")
     else:
         compressed_results = ""  # Skipping task not to be penalized (same could be done for low quality results)
     synapse = SubmitResults(
-        task=pull.task, results=compressed_results, compression=2, submit_time=submit_time, signature=signature
+        task=pull.task, results=compressed_results, compression=0, submit_time=submit_time, signature=signature
     )
     response = typing.cast(
         SubmitResults,
