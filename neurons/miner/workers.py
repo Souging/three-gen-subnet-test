@@ -64,7 +64,7 @@ async def _complete_one_task(
                 f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}."
             )
             if pull.cooldown_until == 0:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 10)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
             return
@@ -72,7 +72,7 @@ async def _complete_one_task(
     if pull.task is None:
         if pull.cooldown_until == 0:
             bt.logging.warning(f"validator_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 10)
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
@@ -89,8 +89,8 @@ async def _complete_one_task(
 		prompt=pull.task.prompt,
 		seed=random_seed,
 		randomize_seed=True,
-		width=960,
-		height=960,
+		width=1024,
+		height=1024,
 		guidance_scale=10.0,
         num_inference_steps=12,
 		api_name="/generate_flux_image"
@@ -100,10 +100,10 @@ async def _complete_one_task(
     vresult = client.predict(
 		image=handle_file(images),
 		seed=random_seed,
-		ss_guidance_strength=7.5,
-		ss_sampling_steps=20,
+		ss_guidance_strength=8.5,
+		ss_sampling_steps=24,
 		slat_guidance_strength=3.5,
-		slat_sampling_steps=20,
+		slat_sampling_steps=24,
 		api_name="/image_to_3d"
     )
     
@@ -131,7 +131,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     response = typing.cast(
         PullTask,
         await dendrite.call(
-            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=20.0
+            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=10.0
         ),
     )
     return response
