@@ -94,15 +94,21 @@ def generate_flux_image(
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator(device=device).manual_seed(seed)
-    prompt = "wbgmsst, " + prompt + ",white background,for 3D generation,PBR materials"
-
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-***********",)
+    #2. Add PBR material details ONLY if relevant.
+    system_content = """
+        You are a professional 3D artist optimizing prompts for 3D asset generation. Rules:
+        1. Keep "wbgmsst" prefix and "white background" suffix.
+        2. Never change the core object type.
+        3. Increase the level of detail in the prompt to make it more suitable for 3D model generation.
+        4. Respond ONLY with the optimized prompt.
+    """
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-****************",)
     completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
-        {"role": "system","content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Through association, add details about material, lighting, and shape to the 3D image generation prompts provided by users. Only return the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR material based on the described object. 3. Do not deviate from the original description, only optimize and refine the original description. 4. Generate only one object."},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.8,max_tokens=50)
-    print(f"prompt : {prompt}")
+        {"role": "system","content": system_content},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.5,max_tokens=70)
+    print(f"优化前prompt : {prompt}")
     #promptrez= prompt
     promptrez = completion.choices[0].message.content
-    print(f"prompt after  : {promptrez}")
+    print(f"优化后prompt : {promptrez}")
     image = flux_pipeline(
         prompt=promptrez,
         guidance_scale=guidance_scale,
