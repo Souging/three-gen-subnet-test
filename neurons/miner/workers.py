@@ -49,43 +49,50 @@ async def _complete_one_task(
 ) -> None:
     validator_uid = validator_selector.get_next_validator_to_query()
     if validator_uid is None:
-        await asyncio.sleep(10.0)
+        await asyncio.sleep(5.0)
         return
     # Setting cooldown to prevent selecting the same validator for concurrent task.
     validator_selector.set_cooldown(validator_uid, int(time.time()) + 300)
 
     async with bt.dendrite(wallet=wallet) as dendrite:
         pull = await _pull_task(dendrite, metagraph, validator_uid)
+        bt.logging.debug(
+                f"validator_uid :{validator_uid}   pull received : {pull} "
+            )
         if pull.dendrite.status_code != 200:
             bt.logging.warning(
-                f"Failed to get task from [{metagraph.hotkeys[validator_uid]}]. Reason: {pull.dendrite.status_message}."
+                f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}."
             )
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 100)
+            if pull.cooldown_until == 0:
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
+            else:
+                validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
             return
 
     if pull.task is None:
         if pull.cooldown_until == 0:
-            bt.logging.warning(f"Failed to get task from [{metagraph.hotkeys[validator_uid]}]. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + FAILED_VALIDATOR_DELAY)
+            bt.logging.warning(f"validator_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
-                f"Miner is on cooldown for the next: {cooldown_left} sec. "
+                f"validator_uid :{validator_uid}  Miner is on cooldown for the next: {cooldown_left} sec. "
                 f"Total cooldown violations: {pull.cooldown_violations}"
             )
             validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
 
-    bt.logging.debug(f"Task received. Prompt: {pull.task.prompt}.")
+    bt.logging.debug(f"validator_uid :{validator_uid}  Task received. Prompt: {pull.task.prompt}.")
     random_seed = random.randint(0, 2**32 - 1)
     client = Client(generate_url)
     images = client.predict(
 		prompt=pull.task.prompt,
 		seed=random_seed,
 		randomize_seed=True,
-		width=1280,
-		height=1280,
+		width=960,
+		height=960,
 		guidance_scale=8.0,
+        num_inference_steps=16,
 		api_name="/generate_flux_image"
     )
     #bt.logging.debug(f"images received. : {images}.")
@@ -94,26 +101,26 @@ async def _complete_one_task(
 		image=handle_file(images),
 		seed=random_seed,
 		ss_guidance_strength=7.5,
-		ss_sampling_steps=24,
+		ss_sampling_steps=20,
 		slat_guidance_strength=3.5,
 		slat_sampling_steps=20,
 		api_name="/image_to_3d"
     )
-    vpath = vresult["video"]
     
-    results = mp4_to_bytes_open(vpath)
+    
+    results = mp4_to_bytes_open(vresult)
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
 
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, results)
         if submit.feedback is None:
             bt.logging.warning(
-                f"Failed to submit results to [{metagraph.hotkeys[validator_uid]}]. "
+                f"validator_uid :{validator_uid}  Failed to submit results to [{metagraph.hotkeys[validator_uid]}]. "
                 f"Reason: {submit.dendrite.status_message}."
             )
             validator_selector.set_cooldown(validator_uid, int(time.time()) + FAILED_VALIDATOR_DELAY)
             return
-    #bt.logging.debug(f"submit: {submit}.")
+    bt.logging.debug(f"validator_uid :{validator_uid}  submit: {submit}.")
     _log_feedback(validator_uid, submit)
 
     validator_selector.set_cooldown(validator_uid, submit.cooldown_until)
