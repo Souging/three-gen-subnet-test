@@ -87,28 +87,20 @@ def generate_flux_image(
     guidance_scale: float,
     
     req: gr.Request,
-    num_inference_steps: int = 12,
+    num_inference_steps: int = 18,
     progress: gr.Progress = gr.Progress(track_tqdm=True),
 ) -> Image.Image:
     """Generate image using Flux pipeline"""
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator(device=device).manual_seed(seed)
-    prompt = "wbgmsst, " + prompt + ",white background"
+    prompt = "wbgmsst, " + prompt + ",white background,for 3D generation,PBR materials"
 
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-*********",)
-    completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",
-        messages=[
-        {
-        "role": "system",
-        "content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Through association, add details about materials, lighting, and details to the 3D image generation prompts provided by users. Only return the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR materials based on the described object 3. Do not deviate from the object described in the original prompt"
-        },{
-            "role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"
-        }
-        ],temperature=0.7,max_tokens=77
-    )
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-***********",)
+    completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
+        {"role": "system","content": "You are a professional 3D artist specializing in optimizing prompts for flux images. Through association, add details about material, lighting, and shape to the 3D image generation prompts provided by users. Only return the optimized prompt text, without any additional explanations or formatting. Rule 1. wbgmsst 2. Consider whether to use PBR material based on the described object. 3. Do not deviate from the original description, only optimize and refine the original description. 4. Generate only one object."},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.8,max_tokens=50)
     print(f"prompt : {prompt}")
-    
+    #promptrez= prompt
     promptrez = completion.choices[0].message.content
     print(f"prompt after  : {promptrez}")
     image = flux_pipeline(
@@ -116,8 +108,8 @@ def generate_flux_image(
         guidance_scale=guidance_scale,
         negative_prompt="ugly, bad anatomy, blurry, pixelated obscure, unnatural colors, poor lighting, dull, and unclear, cropped, lowres, low quality, artifacts, duplicate, morbid, mutilated, poorly drawn face, deformed, dehydrated, bad proportions",
         num_inference_steps=num_inference_steps,
-        width=1280,
-        height=1280,
+        width=width,
+        height=height,
         generator=generator,
     ).images[0]
     
@@ -187,13 +179,13 @@ def extract_glb(
 
 # Interfaz Gradio
 with gr.Blocks() as demo:
-    gr.Markdown("""
+    #gr.Markdown("""
     # UTPL - Conversión de Texto a Imagen a objetos 3D usando IA  
     ### Tesis: *"Objetos tridimensionales creados por IA: Innovación en entornos virtuales"*  
-    **Autor:** Carlos Vargas  
-    **Base técnica:** Adaptación de [TRELLIS](https://trellis3d.github.io/) y [FLUX](https://huggingface.co/camenduru/FLUX.1-dev-diffusers) (herramientas de código abierto para generación 3D)
-    **Propósito educativo:** Demostraciones académicas e Investigación en modelado 3D automático  
-    """)
+    #**Autor:** Carlos Vargas  
+    #**Base técnica:** Adaptación de [TRELLIS](https://trellis3d.github.io/) y [FLUX](https://huggingface.co/camenduru/FLUX.1-dev-diffusers) (herramientas de código abierto para generación 3D)
+    #**Propósito educativo:** Demostraciones académicas e Investigación en modelado 3D automático  
+    #""")
     
     with gr.Row():
         with gr.Column():
