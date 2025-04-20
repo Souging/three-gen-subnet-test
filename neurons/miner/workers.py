@@ -64,7 +64,7 @@ async def _complete_one_task(
                 f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}."
             )
             if pull.cooldown_until == 0:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 10)
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
             return
@@ -72,7 +72,7 @@ async def _complete_one_task(
     if pull.task is None:
         if pull.cooldown_until == 0:
             bt.logging.warning(f"validator_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 10)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
@@ -91,8 +91,8 @@ async def _complete_one_task(
 		randomize_seed=True,
 		width=960,
 		height=960,
-		guidance_scale=8.0,
-        num_inference_steps=16,
+		guidance_scale=10.0,
+        num_inference_steps=12,
 		api_name="/generate_flux_image"
     )
     #bt.logging.debug(f"images received. : {images}.")
