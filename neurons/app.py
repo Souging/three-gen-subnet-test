@@ -18,7 +18,7 @@ from PIL import Image
 from trellis.pipelines import TrellisImageTo3DPipeline
 from trellis.representations import Gaussian, MeshExtractResult
 from trellis.utils import render_utils, postprocessing_utils
-NUM_INFERENCE_STEPS = 8
+NUM_INFERENCE_STEPS = 20
 huggingface_token = os.getenv("HUGGINGFACE_TOKEN")
 # Constants
 MAX_SEED = np.iinfo(np.int32).max
@@ -85,16 +85,18 @@ def generate_flux_image(
     width: int,
     height: int,
     guidance_scale: float,
+    
     req: gr.Request,
+    num_inference_steps: int = 12,
     progress: gr.Progress = gr.Progress(track_tqdm=True),
 ) -> Image.Image:
     """Generate image using Flux pipeline"""
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator(device=device).manual_seed(seed)
-    prompt = "wbgmsst, " + prompt + ", 3D isometric, white background"
+    prompt = "wbgmsst, " + prompt + ",white background"
 
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-*******************",)
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-*********",)
     completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",
         messages=[
         {
@@ -103,7 +105,7 @@ def generate_flux_image(
         },{
             "role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"
         }
-        ],temperature=0.7,max_tokens=150
+        ],temperature=0.7,max_tokens=77
     )
     print(f"prompt : {prompt}")
     
@@ -113,9 +115,9 @@ def generate_flux_image(
         prompt=promptrez,
         guidance_scale=guidance_scale,
         negative_prompt="ugly, bad anatomy, blurry, pixelated obscure, unnatural colors, poor lighting, dull, and unclear, cropped, lowres, low quality, artifacts, duplicate, morbid, mutilated, poorly drawn face, deformed, dehydrated, bad proportions",
-        num_inference_steps=NUM_INFERENCE_STEPS,
-        width=1088,
-        height=1088,
+        num_inference_steps=num_inference_steps,
+        width=1280,
+        height=1280,
         generator=generator,
     ).images[0]
     
@@ -205,12 +207,14 @@ with gr.Blocks() as demo:
                     height = gr.Slider(512, 1024, label="Height", value=1024, step=16)
                 with gr.Row():
                     guidance_scale = gr.Slider(0.0, 10.0, label="Guidance Scale", value=3.5, step=0.1)
+                    num_inference_steps = gr.Slider(8, 200, label="num_inference_steps", value=8, step=2)
             # Botones separados
             generate_image_btn = gr.Button("Generar Imagen")
             generate_video_btn = gr.Button("Generar Video", interactive=False)
         with gr.Column():
             generated_image = gr.Image(label="Generated Asset", type="pil")
-            video_output = gr.Video(label="Generated 3D Asset", autoplay=True, loop=True)
+            ply_viewer = gr.Model3D(label="3D Point Cloud") 
+            #video_output = gr.Video(label="Generated 3D Asset", autoplay=True, loop=True)
         model_output = LitModel3D(label="Extracted GLB", exposure=8.0, height=400)
     
     with gr.Row():
@@ -244,7 +248,7 @@ with gr.Blocks() as demo:
     # Generar imagen
     generate_image_btn.click(
         generate_flux_image,
-        inputs=[prompt, seed, randomize_seed, width, height, guidance_scale],
+        inputs=[prompt, seed, randomize_seed, width, height, guidance_scale,num_inference_steps],
         outputs=[generated_image]
     ).then(
         lambda: gr.Button(interactive=True),  
@@ -270,13 +274,13 @@ with gr.Blocks() as demo:
             slat_guidance_strength, 
             slat_sampling_steps
         ],
-        outputs=[output_buf, video_output],
+        outputs=[output_buf, ply_viewer],
     ).then(
         lambda: gr.Button(interactive=True),
         outputs=[extract_glb_btn],
     )
     
-    video_output.clear(
+    ply_viewer.clear(
         lambda: gr.Button(interactive=False),
         outputs=[extract_glb_btn],
     )
