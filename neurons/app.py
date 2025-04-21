@@ -104,12 +104,12 @@ def generate_flux_image(
         4. Only reply with the optimized prompt.
         5. If the description is unclear, construct the object based on the description.
         """
-    #client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="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",)
-    #completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
-    #    {"role": "system","content": system_content},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.5,max_tokens=70)
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-************",)
+    completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
+        {"role": "system","content": system_content},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.5,max_tokens=70)
     print(f"优化前prompt : {prompt}")
     promptrez= prompt
-    #promptrez = completion.choices[0].message.content
+    promptrez = completion.choices[0].message.content
     print(f"优化后prompt : {promptrez}")
     image = flux_pipeline(
         prompt=promptrez,
