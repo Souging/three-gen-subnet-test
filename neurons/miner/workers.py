@@ -57,7 +57,7 @@ async def _complete_one_task(
 ) -> None:
     validator_uid = validator_selector.get_next_validator_to_query()
     if validator_uid is None:
-        await asyncio.sleep(5.0)
+        await asyncio.sleep(1.0)
         return
     # Setting cooldown to prevent selecting the same validator for concurrent task.
     validator_selector.set_cooldown(validator_uid, int(time.time()) + 300)
@@ -66,7 +66,7 @@ async def _complete_one_task(
         pull = await _pull_task(dendrite, metagraph, validator_uid)
         #bt.logging.debug(f"validator_uid :{validator_uid}   pull received : {pull} ")
         if pull.dendrite.status_code != 200:
-            #bt.logging.warning(f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}.")
+            bt.logging.warning(f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}.")
             if pull.cooldown_until == 0:
                 validator_selector.set_cooldown(validator_uid, int(time.time()) + 30)
             else:
@@ -116,7 +116,7 @@ async def _complete_one_task(
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
         validation_res = await validate("http://***.***.***.***:44814", prompt=pull.task.prompt,results=compressed_results)
         if validation_res is not None:
-            if validation_res.score >= 0.84:
+            if validation_res.score >= 0.82:
                 bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
                 break
 
