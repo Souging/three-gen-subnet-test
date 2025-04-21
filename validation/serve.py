@@ -74,7 +74,7 @@ def _prepare_input_data(
     gs_data: GaussianSplattingData = ply_data_loader.from_buffer(pcl_buffer)
     t2 = time()
     time_stat.loading_data_time = t2 - t1
-    logger.info(f"Loading data took: {time_stat.loading_data_time} sec.")
+    #logger.info(f"Loading data took: {time_stat.loading_data_time} sec.")
 
     # Check required memory
     if not is_input_data_valid(gs_data):
@@ -85,7 +85,7 @@ def _prepare_input_data(
     images = renderer.render_gs(gs_data_gpu, 16, 224, 224)
     t3 = time()
     time_stat.image_rendering_time = t3 - t2
-    logger.info(f"Image Rendering took: {time_stat.image_rendering_time} sec.")
+    #logger.info(f"Image Rendering took: {time_stat.image_rendering_time} sec.")
     return gs_data_gpu, images, time_stat
 
 
@@ -116,7 +116,7 @@ def _validate_text_vs_image(
     val_res: ValidationResult = validator.validate_text_to_gs(prompt, images)
     logger.info(f" Score: {val_res.final_score}. Prompt: {prompt}")
     val_res.validation_time = time() - t1
-    logger.info(f"Validation took: {val_res.validation_time} sec.")
+    #logger.info(f"Validation took: {val_res.validation_time} sec.")
     return val_res
 
 
@@ -162,32 +162,32 @@ def _cleanup() -> None:
     t1 = time()
     torch.cuda.empty_cache()
     gpu_memory_free, gpu_memory_total = torch.cuda.mem_get_info()
-    logger.info(f"Cache purge took: {time() - t1} sec. VRAM Memory: {gpu_memory_free} / {gpu_memory_total}")
+    #logger.info(f"Cache purge took: {time() - t1} sec. VRAM Memory: {gpu_memory_free} / {gpu_memory_total}")
 
 
 def decode_assets(request: RequestData, zstd_decomp: zstandard.ZstdDecompressor) -> bytes:
     t1 = time()
     assets = pybase64.b64decode(request.data, validate=True)
     t2 = time()
-    logger.info(
-        f"Assets decoded. Size: {len(request.data)} -> {len(assets)}. "
-        f"Time taken: {t2 - t1:.2f} sec. Prompt: {request.prompt}."
-    )
+    #logger.info(
+    #    f"Assets decoded. Size: {len(request.data)} -> {len(assets)}. "
+    #    f"Time taken: {t2 - t1:.2f} sec. Prompt: {request.prompt}."
+    #)
 
     if request.compression == 1:  # Experimental. Zstd compression.
         compressed_size = len(assets)
         assets = zstd_decomp.decompress(assets)
-        logger.info(
-            f"Decompressed. Size: {compressed_size} -> {len(assets)}. "
-            f"Time taken: {time() - t2:.2f} sec. Prompt: {request.prompt}."
-        )
+        #logger.info(
+        #    f"Decompressed. Size: {compressed_size} -> {len(assets)}. "
+        #    f"Time taken: {time() - t2:.2f} sec. Prompt: {request.prompt}."
+        #)
     elif request.compression == 2:  # Experimental. SPZ compression.
         compressed_size = len(assets)
         assets = pyspz.decompress(assets, include_normals=False)
-        logger.info(
-            f"Decompressed. Size: {compressed_size} -> {len(assets)}. "
-            f"Time taken: {time() - t2:.2f} sec. Prompt: {request.prompt}."
-        )
+        #logger.info(
+        #    f"Decompressed. Size: {compressed_size} -> {len(assets)}. "
+        #    f"Time taken: {time() - t2:.2f} sec. Prompt: {request.prompt}."
+        #)
 
     return assets
 
