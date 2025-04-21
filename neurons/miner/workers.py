@@ -42,18 +42,18 @@ def mp4_to_bytes_open(file_path):
   except Exception as e:
     print(f"Error reading file: {e}")
     return None
+
+
 async def worker_routine(
-    endpoint: str, wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
+    endpoint: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
     #bt.logging.info(f"Worker ({endpoint}) started")
-    generate_url = urllib.parse.urljoin(endpoint, "/generate/")
-
     while True:
         await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
 
 
 async def _complete_one_task(
-    generate_url: str, wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
+    generate_url: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
     validator_uid = validator_selector.get_next_validator_to_query()
     if validator_uid is None:
@@ -89,7 +89,8 @@ async def _complete_one_task(
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
     while True:
         random_seed = random.randint(0, 2**32 - 1)
-        client = Client(generate_url)
+        endpoints = random.choice(generate_url)
+        client = Client(endpoints)
         images = client.predict(
 		    prompt=pull.task.prompt,
 		    seed=random_seed,
@@ -113,9 +114,10 @@ async def _complete_one_task(
         )
         results = mp4_to_bytes_open(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://194.**.**.**:21002", prompt=pull.task.prompt,results=compressed_results)
+        validation_res = await validate("http://***.**.2****.****:21002", prompt=pull.task.prompt,results=compressed_results)
         if validation_res is not None:
             if validation_res.score >= 0.85:
+                bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
                 break
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
