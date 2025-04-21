@@ -107,16 +107,16 @@ async def _complete_one_task(
 		    image=handle_file(images),
 		    seed=random_seed,
 		    ss_guidance_strength=8.5,
-		    ss_sampling_steps=16,
+		    ss_sampling_steps=12,
 		    slat_guidance_strength=3.5,
-		    slat_sampling_steps=16,
+		    slat_sampling_steps=12,
 		    api_name="/image_to_3d"
         )
         results = mp4_to_bytes_open(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://***.**.2****.****:21002", prompt=pull.task.prompt,results=compressed_results)
+        validation_res = await validate("http://***.***.***.***:44814", prompt=pull.task.prompt,results=compressed_results)
         if validation_res is not None:
-            if validation_res.score >= 0.85:
+            if validation_res.score >= 0.84:
                 bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
                 break
 
@@ -153,7 +153,7 @@ async def validate(
     data = results
     validate_url = urllib.parse.urljoin(endpoint, "/validate_txt_to_3d_ply/")
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=100)) as session:
         try:
             async with session.post(
                 validate_url,
