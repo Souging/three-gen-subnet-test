@@ -2,7 +2,9 @@ import asyncio
 import base64
 import time
 import typing
+import pydantic
 import urllib.parse
+from pydantic import BaseModel, Field
 from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
@@ -16,7 +18,13 @@ from common.protocol import PullTask, SubmitResults
 
 from miner import ValidatorSelector
 
-
+class ValidationResponse(BaseModel):
+    score: float = Field(default=0.0, description="Validation score, from 0.0 to 1.0")
+    iqa: float = Field(default=0.0, description="Aesthetic Predictor (quality) score")
+    clip: float = Field(default=0.0, description="Clip similarity score")
+    ssim: float = Field(default=0.0, description="Structure similarity score")
+    lpips: float = Field(default=0.0, description="Perceptive similarity score")
+    preview: str | None = Field(default=None, description="Optional. Preview image, base64 encoded PNG")
 NETWORK_DELAY_TIME_BUFFER = 60
 FAILED_VALIDATOR_DELAY = 300
 
@@ -79,34 +87,39 @@ async def _complete_one_task(
         return
 
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
-    random_seed = random.randint(0, 2**32 - 1)
-    client = Client(generate_url)
-    images = client.predict(
-		prompt=pull.task.prompt,
-		seed=random_seed,
-		randomize_seed=True,
-		width=512,
-		height=512,
-		guidance_scale=9.0,
-        num_inference_steps=16,
-		api_name="/generate_flux_image"
-    )
-    #bt.logging.debug(f"images received. : {images}.")
-    random_seed = random.randint(0, 2**32 - 1)
-    vresult = client.predict(
-		image=handle_file(images),
-		seed=random_seed,
-		ss_guidance_strength=8.5,
-		ss_sampling_steps=20,
-		slat_guidance_strength=3.5,
-		slat_sampling_steps=16,
-		api_name="/image_to_3d"
-    )
-    
-    
-    results = mp4_to_bytes_open(vresult)
-    #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
+    while True:
+        random_seed = random.randint(0, 2**32 - 1)
+        client = Client(generate_url)
+        images = client.predict(
+		    prompt=pull.task.prompt,
+		    seed=random_seed,
+		    randomize_seed=True,
+		    width=512,
+		    height=512,
+		    guidance_scale=9.0,
+            num_inference_steps=8,
+		    api_name="/generate_flux_image"
+        )
+        #bt.logging.debug(f"images received. : {images}.")
+        random_seed = random.randint(0, 2**32 - 1)
+        vresult = client.predict(
+		    image=handle_file(images),
+		    seed=random_seed,
+		    ss_guidance_strength=8.5,
+		    ss_sampling_steps=16,
+		    slat_guidance_strength=3.5,
+		    slat_sampling_steps=16,
+		    api_name="/image_to_3d"
+        )
+        results = mp4_to_bytes_open(vresult)
+        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        validation_res = await validate("http://194.**.**.**:21002", prompt=pull.task.prompt,results=compressed_results)
+        if validation_res is not None:
+            if validation_res.score >= 0.85:
+                break
 
+    #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
+    
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, results)
         if submit.feedback is None:
@@ -131,7 +144,44 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     )
     return response
 
+async def validate(
+    endpoint: str,prompt: str ,results: str, storage_enabled: bool = False, validation_score_threshold: float = 0.6
+) -> ValidationResponse | None:
+    prompt = prompt  # type: ignore[union-attr]
+    data = results
+    validate_url = urllib.parse.urljoin(endpoint, "/validate_txt_to_3d_ply/")
 
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(
+                validate_url,
+                json={
+                    "prompt": prompt,
+                    "data": data,
+                    "compression": 2,
+                    "generate_preview": storage_enabled,
+                    "preview_score_threshold": validation_score_threshold - 0.1,
+                },
+            ) as response:
+                if response.status == 200:
+                    data_dict = await response.json()
+                    results = ValidationResponse(**data_dict)
+                    bt.logging.debug(f"本地验证分数: {results.score:.2f} | 提示词: {prompt}")
+                    return results
+                else:
+                    bt.logging.debug(f"本地验证错误: [{response.status}] {response.reason}")
+        except aiohttp.ClientConnectorError:
+            bt.logging.warning(f"Failed to connect to the endpoint. The endpoint might be inaccessible: {endpoint}.")
+        except TimeoutError:
+            bt.logging.warning(f"The request to the endpoint timed out: {endpoint}")
+        except aiohttp.ClientError as e:
+            bt.logging.warning(f"An unexpected client error occurred: {e} ({endpoint})")
+        except pydantic.ValidationError as e:
+            bt.logging.warning(f"Incompatible validation response format: {e} ({endpoint})")
+        except Exception as e:
+            bt.logging.warning(f"An unexpected error occurred: {e} ({endpoint})")
+
+    return None
 async def _submit_results(
     wallet: bt.wallet,
     dendrite: bt.dendrite,
@@ -148,12 +198,12 @@ async def _submit_results(
     )
     signature = base64.b64encode(dendrite.keypair.sign(message)).decode(encoding="utf-8")
     if results:
-        #compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        compressed_results = base64.b64encode(results).decode(encoding="utf-8")
+        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        #compressed_results = base64.b64encode(results).decode(encoding="utf-8")
     else:
         compressed_results = ""  # Skipping task not to be penalized (same could be done for low quality results)
     synapse = SubmitResults(
-        task=pull.task, results=compressed_results, compression=0, submit_time=submit_time, signature=signature
+        task=pull.task, results=compressed_results, compression=2, submit_time=submit_time, signature=signature
     )
     response = typing.cast(
         SubmitResults,
