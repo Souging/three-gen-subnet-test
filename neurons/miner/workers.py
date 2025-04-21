@@ -44,7 +44,38 @@ def mp4_to_bytes_open(file_path):
     print(f"Error reading file: {e}")
     return None
 
+def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) -> str:
+    """同步调用 gradio_client 生成图片"""
+    #client = Client(endpoint)
+    try:
+        return client.predict(
+            prompt=prompt,
+            seed=seed,
+            randomize_seed=True,
+            width=512,
+            height=512,
+            guidance_scale=8.0,
+            num_inference_steps=10,
+            api_name="/generate_flux_image"
+        )
+    finally:
+        client.close()
 
+def _call_gradio_client_image_to_3d(endpoint: str, image_path: str, seed: int,client: Client) -> str:
+    """同步调用 gradio_client 生成 3D 模型"""
+    #client = Client(endpoint)
+    try:
+        return client.predict(
+            image=handle_file(image_path),
+            seed=seed,
+            ss_guidance_strength=8.5,
+            ss_sampling_steps=14,
+            slat_guidance_strength=3.5,
+            slat_sampling_steps=14,
+            api_name="/image_to_3d"
+        )
+    finally:
+        client.close()
 async def worker_routine(
     endpoint: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
@@ -88,43 +119,30 @@ async def _complete_one_task(
         return
 
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
-    cs = 0
     while True:
-        if cs == 3:
-            async with bt.dendrite(wallet=wallet) as dendrite:
-                submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, "")
-                if submit.feedback is None:
-                    bt.logging.warning(
-                        f"vali_uid :{validator_uid}  提交结果出错 to [{metagraph.hotkeys[validator_uid]}]. "
-                        f"Reason: {submit.dendrite.status_message}."
-                    )
-            bt.logging.debug(f"vali_uid :{validator_uid}  Prompt: {pull.task.prompt} 3次分数低 跳过")        
-            return 
-
         random_seed = random.randint(0, 2**32 - 1)
         endpoints = random.choice(generate_url)
-        client = Client(endpoints)
-        images = client.predict(
-		    prompt=pull.task.prompt,
-		    seed=random_seed,
-		    randomize_seed=True,
-		    width=512,
-		    height=512,
-		    guidance_scale=8.0,
-            num_inference_steps=10,
-		    api_name="/generate_flux_image"
-        )
-        #bt.logging.debug(f"images received. : {images}.")
-        random_seed = random.randint(0, 2**32 - 1)
-        vresult = client.predict(
-		    image=handle_file(images),
-		    seed=random_seed,
-		    ss_guidance_strength=8.5,
-		    ss_sampling_steps=14,
-		    slat_guidance_strength=3.5,
-		    slat_sampling_steps=14,
-		    api_name="/image_to_3d"
-        )
+        try:
+            # 将同步阻塞的 gradio_client 调用放到线程池执行
+            client = Client(endpoints)
+            images = await asyncio.to_thread(
+                _call_gradio_client,
+                endpoints,
+                pull.task.prompt,
+                random_seed,
+                client
+            )
+            random_seed = random.randint(0, 2**32 - 1)
+            vresult = await asyncio.to_thread(
+                _call_gradio_client_image_to_3d,
+                endpoints,
+                images,
+                random_seed,
+                client
+            )
+        except Exception as e:
+            bt.logging.error(f"Failed to connect to {endpoints}: {str(e)}")
+            continue
         os.remove(images)
         results = mp4_to_bytes_open(vresult)
         os.remove(vresult)
@@ -134,7 +152,6 @@ async def _complete_one_task(
             if validation_res.score >= 0.81999:
                 bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.82 跳出循环提交...")
                 break
-        cs = cs + 1
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
     
