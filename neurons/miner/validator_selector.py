@@ -45,7 +45,7 @@ class ValidatorSelector:
 
 
             if start_uid == self._next_uid:
-                bt.logging.info(f"uid:{self._next_uid} No available validators to pull the task.")
+                #bt.logging.info(f"uid:{self._next_uid} No available validators to pull the task.")
                 return None
 
     def set_cooldown(self, validator_uid: int, cooldown_until: int) -> None:
