@@ -56,43 +56,39 @@ async def _complete_one_task(
 
     async with bt.dendrite(wallet=wallet) as dendrite:
         pull = await _pull_task(dendrite, metagraph, validator_uid)
-        bt.logging.debug(
-                f"validator_uid :{validator_uid}   pull received : {pull} "
-            )
+        #bt.logging.debug(f"validator_uid :{validator_uid}   pull received : {pull} ")
         if pull.dendrite.status_code != 200:
-            bt.logging.warning(
-                f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}."
-            )
+            #bt.logging.warning(f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}.")
             if pull.cooldown_until == 0:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 30)
             else:
-                validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 10)
             return
 
     if pull.task is None:
         if pull.cooldown_until == 0:
-            bt.logging.warning(f"validator_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 50)
+            bt.logging.warning(f"vali_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 30)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
-                f"validator_uid :{validator_uid}  Miner is on cooldown for the next: {cooldown_left} sec. "
-                f"Total cooldown violations: {pull.cooldown_violations}"
+                f"vali_uid :{validator_uid}  Miner 在冷却期 : {cooldown_left} sec. "
+                f"总冷却次数: {pull.cooldown_violations}"
             )
             validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
 
-    bt.logging.debug(f"validator_uid :{validator_uid}  Task received. Prompt: {pull.task.prompt}.")
+    bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
     random_seed = random.randint(0, 2**32 - 1)
     client = Client(generate_url)
     images = client.predict(
 		prompt=pull.task.prompt,
 		seed=random_seed,
 		randomize_seed=True,
-		width=1024,
-		height=1024,
-		guidance_scale=10.0,
-        num_inference_steps=12,
+		width=512,
+		height=512,
+		guidance_scale=9.0,
+        num_inference_steps=16,
 		api_name="/generate_flux_image"
     )
     #bt.logging.debug(f"images received. : {images}.")
@@ -101,9 +97,9 @@ async def _complete_one_task(
 		image=handle_file(images),
 		seed=random_seed,
 		ss_guidance_strength=8.5,
-		ss_sampling_steps=24,
+		ss_sampling_steps=20,
 		slat_guidance_strength=3.5,
-		slat_sampling_steps=24,
+		slat_sampling_steps=16,
 		api_name="/image_to_3d"
     )
     
@@ -115,13 +111,12 @@ async def _complete_one_task(
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, results)
         if submit.feedback is None:
             bt.logging.warning(
-                f"validator_uid :{validator_uid}  Failed to submit results to [{metagraph.hotkeys[validator_uid]}]. "
+                f"vali_uid :{validator_uid}  提交结果出错 to [{metagraph.hotkeys[validator_uid]}]. "
                 f"Reason: {submit.dendrite.status_message}."
             )
             validator_selector.set_cooldown(validator_uid, int(time.time()) + FAILED_VALIDATOR_DELAY)
-            return
-    bt.logging.debug(f"validator_uid :{validator_uid}  submit: {submit}.")
-    _log_feedback(validator_uid, submit)
+            return 
+    _log_feedback(validator_uid, submit,vresult)
 
     validator_selector.set_cooldown(validator_uid, submit.cooldown_until)
 
@@ -153,12 +148,12 @@ async def _submit_results(
     )
     signature = base64.b64encode(dendrite.keypair.sign(message)).decode(encoding="utf-8")
     if results:
-        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        #compressed_results = base64.b64encode(results).decode(encoding="utf-8")
+        #compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        compressed_results = base64.b64encode(results).decode(encoding="utf-8")
     else:
         compressed_results = ""  # Skipping task not to be penalized (same could be done for low quality results)
     synapse = SubmitResults(
-        task=pull.task, results=compressed_results, compression=2, submit_time=submit_time, signature=signature
+        task=pull.task, results=compressed_results, compression=0, submit_time=submit_time, signature=signature
     )
     response = typing.cast(
         SubmitResults,
@@ -172,17 +167,27 @@ async def _submit_results(
     return response
 
 
-def _log_feedback(validator_uid: int, submit: SubmitResults) -> None:
+def _log_feedback(validator_uid: int, submit: SubmitResults,vresult : str) -> None:
     feedback = submit.feedback
     if feedback is None:
         return
     score = "failed" if feedback.validation_failed else feedback.task_fidelity_score
-    bt.logging.debug(f"Feedback received from [{validator_uid}]. Prompt: {submit.task.prompt}. Score: {score}")
-    bt.logging.debug(
-        f"Average score: {feedback.average_fidelity_score}. "
-        f"Accepted results (last 4h): {feedback.generations_within_the_window}. "
-        f"Reward: {feedback.current_miner_reward}."
-    )
+    bt.logging.debug(f"收到的反馈来自[{validator_uid}]. Prompt: {submit.task.prompt}. Score: {score}")
+    if score==0:
+        bt.logging.debug(
+        f"平均分数: {feedback.average_fidelity_score}. "
+        f"4小时内次数: {feedback.generations_within_the_window}. "
+        f"总分数: {feedback.current_miner_reward}."
+        f"path: {vresult}."
+        )
+    else:
+        bt.logging.debug(
+            f"平均分数: {feedback.average_fidelity_score}. "
+            f"4小时内次数: {feedback.generations_within_the_window}. "
+            f"总分数: {feedback.current_miner_reward}."
+        )
+
+    
 
 
 async def _generate(generate_url: str, prompt: str, timeout: float | None = None) -> bytes | None:  # noqa: ASYNC109
