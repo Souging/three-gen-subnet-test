@@ -27,7 +27,7 @@ class ValidationResponse(BaseModel):
     lpips: float = Field(default=0.0, description="Perceptive similarity score")
     preview: str | None = Field(default=None, description="Optional. Preview image, base64 encoded PNG")
 NETWORK_DELAY_TIME_BUFFER = 60
-FAILED_VALIDATOR_DELAY = 300
+FAILED_VALIDATOR_DELAY = 301
 
 #/tmp/gradio
 
@@ -58,10 +58,10 @@ async def _complete_one_task(
 ) -> None:
     validator_uid = validator_selector.get_next_validator_to_query()
     if validator_uid is None:
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(10.0)
         return
     # Setting cooldown to prevent selecting the same validator for concurrent task.
-    validator_selector.set_cooldown(validator_uid, int(time.time()) + 300)
+    #validator_selector.set_cooldown(validator_uid, int(time.time()) + 300)
 
     async with bt.dendrite(wallet=wallet) as dendrite:
         pull = await _pull_task(dendrite, metagraph, validator_uid)
@@ -69,7 +69,7 @@ async def _complete_one_task(
         if pull.dendrite.status_code != 200:
             bt.logging.warning(f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}.")
             if pull.cooldown_until == 0:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 60)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 120)
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
             return
@@ -77,7 +77,7 @@ async def _complete_one_task(
     if pull.task is None:
         if pull.cooldown_until == 0:
             bt.logging.warning(f"vali_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 60)
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 120)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
@@ -88,7 +88,19 @@ async def _complete_one_task(
         return
 
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
+    cs = 0
     while True:
+        if cs == 3:
+            async with bt.dendrite(wallet=wallet) as dendrite:
+                submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, "")
+                if submit.feedback is None:
+                    bt.logging.warning(
+                        f"vali_uid :{validator_uid}  提交结果出错 to [{metagraph.hotkeys[validator_uid]}]. "
+                        f"Reason: {submit.dendrite.status_message}."
+                    )
+            bt.logging.debug(f"vali_uid :{validator_uid}  Prompt: {pull.task.prompt} 3次分数低 跳过")        
+            return 
+
         random_seed = random.randint(0, 2**32 - 1)
         endpoints = random.choice(generate_url)
         client = Client(endpoints)
@@ -98,8 +110,8 @@ async def _complete_one_task(
 		    randomize_seed=True,
 		    width=512,
 		    height=512,
-		    guidance_scale=9.0,
-            num_inference_steps=8,
+		    guidance_scale=8.0,
+            num_inference_steps=10,
 		    api_name="/generate_flux_image"
         )
         #bt.logging.debug(f"images received. : {images}.")
@@ -108,20 +120,21 @@ async def _complete_one_task(
 		    image=handle_file(images),
 		    seed=random_seed,
 		    ss_guidance_strength=8.5,
-		    ss_sampling_steps=12,
+		    ss_sampling_steps=14,
 		    slat_guidance_strength=3.5,
-		    slat_sampling_steps=12,
+		    slat_sampling_steps=14,
 		    api_name="/image_to_3d"
         )
         os.remove(images)
         results = mp4_to_bytes_open(vresult)
         os.remove(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://127.0.0.1:9999", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
+        validation_res = await validate("http://999.999.999.999:62638", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
         if validation_res is not None:
             if validation_res.score >= 0.81999:
                 bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.82 跳出循环提交...")
                 break
+        cs = cs + 1
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
     
@@ -144,7 +157,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     response = typing.cast(
         PullTask,
         await dendrite.call(
-            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=10.0
+            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=15.0
         ),
     )
     return response
