@@ -33,7 +33,7 @@ def start_session(req: gr.Request):
 
 def end_session(req: gr.Request):
     user_dir = os.path.join(TMP_DIR, str(req.session_hash))
-    shutil.rmtree(user_dir)
+    #shutil.rmtree(user_dir)
 
 def preprocess_image(image: Image.Image) -> Image.Image:
     processed_image = trellis_pipeline.preprocess_image(image)
