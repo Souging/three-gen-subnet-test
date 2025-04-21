@@ -35,8 +35,8 @@ VERSION = "2.0.0"
 def get_args() -> tuple[argparse.Namespace, list[str]]:
     """Function for handling input arguments related to running the server"""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=10006)
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=20000)
     args, extras = parser.parse_known_args()
     return args, extras
 
