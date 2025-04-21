@@ -69,15 +69,15 @@ async def _complete_one_task(
         if pull.dendrite.status_code != 200:
             bt.logging.warning(f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}.")
             if pull.cooldown_until == 0:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 30)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 60)
             else:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 10)
+                validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
             return
 
     if pull.task is None:
         if pull.cooldown_until == 0:
             bt.logging.warning(f"vali_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 30)
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 60)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
@@ -117,10 +117,10 @@ async def _complete_one_task(
         results = mp4_to_bytes_open(vresult)
         os.remove(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://***.***.***.***:44814", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
+        validation_res = await validate("http://127.0.0.1:9999", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
         if validation_res is not None:
             if validation_res.score >= 0.81999:
-                bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
+                bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.82 跳出循环提交...")
                 break
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
@@ -150,7 +150,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     return response
 
 async def validate(
-    endpoint: str,prompt: str ,results: str, storage_enabled: bool = False, validation_score_threshold: float = 0.6,uid : str
+    endpoint: str,prompt: str ,results: str, storage_enabled: bool = False, validation_score_threshold: float = 0.6,uid = None
 ) -> ValidationResponse | None:
     prompt = prompt  # type: ignore[union-attr]
     data = results
@@ -174,7 +174,7 @@ async def validate(
                     bt.logging.debug(f"vuid : {uid} 本地验证分数: {results.score:.2f} | 提示词: {prompt}")
                     return results
                 else:
-                    bt.logging.debug(f"本地验证错误: [{response.status}] {response.reason}")
+                    bt.logging.debug(f"vuid : {uid} 本地验证错误: [{response.status}] {response.reason}")
         except aiohttp.ClientConnectorError:
             bt.logging.warning(f"Failed to connect to the endpoint. The endpoint might be inaccessible: {endpoint}.")
         except TimeoutError:
