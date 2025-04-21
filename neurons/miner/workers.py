@@ -114,7 +114,7 @@ async def _complete_one_task(
         )
         results = mp4_to_bytes_open(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://***.***.***.***:44814", prompt=pull.task.prompt,results=compressed_results)
+        validation_res = await validate("http://111.111.111.111:44814", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
         if validation_res is not None:
             if validation_res.score >= 0.82:
                 bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
@@ -147,7 +147,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     return response
 
 async def validate(
-    endpoint: str,prompt: str ,results: str, storage_enabled: bool = False, validation_score_threshold: float = 0.6
+    endpoint: str,prompt: str ,results: str, storage_enabled: bool = False, validation_score_threshold: float = 0.6,uid : str
 ) -> ValidationResponse | None:
     prompt = prompt  # type: ignore[union-attr]
     data = results
@@ -168,7 +168,7 @@ async def validate(
                 if response.status == 200:
                     data_dict = await response.json()
                     results = ValidationResponse(**data_dict)
-                    bt.logging.debug(f"本地验证分数: {results.score:.2f} | 提示词: {prompt}")
+                    bt.logging.debug(f"vuid : {uid} 本地验证分数: {results.score:.2f} | 提示词: {prompt}")
                     return results
                 else:
                     bt.logging.debug(f"本地验证错误: [{response.status}] {response.reason}")
