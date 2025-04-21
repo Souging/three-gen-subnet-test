@@ -11,6 +11,7 @@ import bittensor as bt
 import pyspz
 from openai import OpenAI
 import random
+import os
 from aiohttp import ClientTimeout
 from aiohttp.helpers import sentinel
 from common.miner_license_consent_declaration import MINER_LICENSE_CONSENT_DECLARATION
@@ -112,11 +113,13 @@ async def _complete_one_task(
 		    slat_sampling_steps=12,
 		    api_name="/image_to_3d"
         )
+        os.remove(images)
         results = mp4_to_bytes_open(vresult)
+        os.remove(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://111.111.111.111:44814", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
+        validation_res = await validate("http://***.***.***.***:44814", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
         if validation_res is not None:
-            if validation_res.score >= 0.82:
+            if validation_res.score >= 0.81999:
                 bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
                 break
 
