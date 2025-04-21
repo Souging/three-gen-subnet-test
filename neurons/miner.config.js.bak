@@ -1,8 +1,15 @@
 module.exports = {
   apps : [{
-    name: 'miner',
+    name: 'sub4',
     script: 'serve_miner.py',
     interpreter: '/root/miniconda3/envs/three-gen-neurons/bin/python',
-    args: '--wallet.name sub4 --wallet.hotkey sub4 --subtensor.network ws://159.69.219.238:11144 --netuid 17 --generation.endpoint http://127.0.0.1:8093 http://51.159.138.186:9001 --logging.debug'
-  }]
+    args: '--wallet.name sub4 --wallet.hotkey sub4 --subtensor.network ws://185.8.107.235:9946 --netuid 17 --generation.endpoint http://86.**.***.35:44549/ http://194.**.**.**:21007  --logging.debug'
+  },
+  {
+    name: 'sub31',
+    script: 'serve_miner.py',
+    interpreter: '/root/miniconda3/envs/three-gen-neurons/bin/python',
+    args: '--wallet.name sub4 --wallet.hotkey sub3-1 --subtensor.network ws://185.8.107.235:9946 --netuid 17 --generation.endpoint http://86.**.***.35:44549/ http://194.**.**.**:21007 --logging.debug'
+  }
+  ]
 };
