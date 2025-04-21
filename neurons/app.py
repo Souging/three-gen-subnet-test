@@ -103,7 +103,7 @@ def generate_flux_image(
         4. Only reply with the optimized prompt.
         5. If the description is unclear, construct the object based on the description.
     """
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-**********",)
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-********",)
     completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
         {"role": "system","content": system_content},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.5,max_tokens=70)
     print(f"优化前prompt : {prompt}")
@@ -143,7 +143,7 @@ def image_to_3d(
     outputs = trellis_pipeline.run(
         image,
         seed=seed,
-        formats=["gaussian", "mesh"],
+        formats=["gaussian","mesh"],
         preprocess_image=False,
         sparse_structure_sampler_params={
             "steps": ss_sampling_steps,
@@ -157,16 +157,10 @@ def image_to_3d(
     ply_path = os.path.join(user_dir, 'point_cloud.ply')
     gaussian_data = outputs['gaussian'][0]
     with open(ply_path, "wb") as f:
-        gaussian_data.save_ply(f) 
-
-
-    #video_geo = render_utils.render_video(outputs['mesh'][0], num_frames=200)['normal']
-    #video = [np.concatenate([video[i], video_geo[i]], axis=1) for i in range(len(video))]
-    #video_path = os.path.join(user_dir, 'sample.mp4')
-    #imageio.mimsave(video_path, video, fps=24)
-    state = pack_state(outputs['gaussian'][0], outputs['mesh'][0])
+        gaussian_data.save_ply(f)
+    state = pack_state(outputs['gaussian'][0],outputs['mesh'][0])
     torch.cuda.empty_cache()
-    return state, ply_path#,video_path
+    return state, ply_path
 
 #@spaces.GPU(duration=90)
 def extract_glb(
