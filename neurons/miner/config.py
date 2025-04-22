@@ -39,7 +39,7 @@ def read_config() -> bt.config:
         type=int,
         nargs="*",
         help="Minimal required stake to set weights.",
-        default=[49,212,81,27,124,142,128],
+        default=[49,212,81,27,124,142,128,160,4],
     )
 
     parser.add_argument(
