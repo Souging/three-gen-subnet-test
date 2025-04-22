@@ -60,10 +60,10 @@ def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) ->
             prompt=prompt,
             seed=seed,
             randomize_seed=True,
-            width=512,
-            height=512,
+            width=1024,
+            height=1024,
             guidance_scale=8.5,
-            num_inference_steps=12,
+            num_inference_steps=10,
             api_name="/generate_flux_image"
         )
     finally:
@@ -76,9 +76,9 @@ def _call_gradio_client_image_to_3d(endpoint: str, image_path: str, seed: int,cl
             image=handle_file(image_path),
             seed=seed,
             ss_guidance_strength=8.5,
-            ss_sampling_steps=12,
+            ss_sampling_steps=14,
             slat_guidance_strength=3.5,
-            slat_sampling_steps=12,
+            slat_sampling_steps=14,
             api_name="/image_to_3d"
         )
     finally:
@@ -125,7 +125,7 @@ async def _complete_one_task(
     cs = 0
     while True:
         if cs >= 8:
-            bt.logging.debug(f"vali_uid :{validator_uid} 超过6次低分，跳过 ")
+            bt.logging.debug(f"vali_uid :{validator_uid} 超过8次低分，跳过 ")
             results = b'' 
             break
         random_seed = random.randint(0, 2**32 - 1)
