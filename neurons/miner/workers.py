@@ -162,13 +162,13 @@ async def _complete_one_task(
         cs = cs + 1
         if validation_res is not None:
             if validator_uid == 49:
-                if validation_res.score >= 0.79999:
-                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.8 跳出循环提交...")
+                if validation_res.score >= 0.74999:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.74 跳出循环提交...")
                     break
             else:
 
-                if validation_res.score >= 0.84999:
-                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.85 跳出循环提交...")
+                if validation_res.score >= 0.79999:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.8 跳出循环提交...")
                     break
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
