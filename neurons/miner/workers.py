@@ -60,10 +60,10 @@ def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) ->
             prompt=prompt,
             seed=seed,
             randomize_seed=True,
-            width=1024,
-            height=1024,
-            guidance_scale=8.5,
-            num_inference_steps=10,
+            width=800,
+            height=800,
+            guidance_scale=8,
+            num_inference_steps=12,
             api_name="/generate_flux_image"
         )
     finally:
@@ -75,10 +75,10 @@ def _call_gradio_client_image_to_3d(endpoint: str, image_path: str, seed: int,cl
         return client.predict(
             image=handle_file(image_path),
             seed=seed,
-            ss_guidance_strength=8.5,
-            ss_sampling_steps=14,
-            slat_guidance_strength=3.5,
-            slat_sampling_steps=14,
+            ss_guidance_strength=6.5,
+            ss_sampling_steps=20,
+            slat_guidance_strength=4.0,
+            slat_sampling_steps=16,
             api_name="/image_to_3d"
         )
     finally:
@@ -89,7 +89,7 @@ async def _complete_one_task(
 ) -> None:
     validator_uid = validator_selector.get_next_validator_to_query()
     if validator_uid is None:
-        await asyncio.sleep(10.0)
+        await asyncio.sleep(2.0)
         return
     # Setting cooldown to prevent selecting the same validator for concurrent task.
     #validator_selector.set_cooldown(validator_uid, int(time.time()) + 300)
@@ -116,7 +116,7 @@ async def _complete_one_task(
                 f"总冷却次数: {pull.cooldown_violations}"
             )
             if cooldown_left >= 500:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 100)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 60)
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
@@ -124,15 +124,14 @@ async def _complete_one_task(
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
     cs = 0
     while True:
-        if cs >= 8:
-            bt.logging.debug(f"vali_uid :{validator_uid} 超过8次低分，跳过 ")
+        if cs >= 3:
+            bt.logging.debug(f"vali_uid :{validator_uid} 超过3次低分，跳过 ")
             results = b'' 
             break
         random_seed = random.randint(0, 2**32 - 1)
         endpoints = random.choice(generate_url)
         ply_endpoint = ["http://127.0.0.1:10006","http://127.0.0.1:10007"]
         try:
-            
             client = Client(endpoints)
             images = await asyncio.to_thread(
                 _call_gradio_client,
@@ -162,13 +161,12 @@ async def _complete_one_task(
         cs = cs + 1
         if validation_res is not None:
             if validator_uid == 49:
-                if validation_res.score >= 0.74999:
-                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.75 跳出循环提交...")
+                if validation_res.score >= 0.69999:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.74 开始提交...")
                     break
             else:
-
-                if validation_res.score >= 0.81999:
-                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.82 跳出循环提交...")
+                if validation_res.score >= 0.69999:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.80 开始提交...")
                     break
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
