@@ -119,7 +119,12 @@ async def _complete_one_task(
         return
 
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
+    cs = 0
     while True:
+        if cs == 4:
+            bt.logging.debug(f"vali_uid :{validator_uid} 超过3次低分，跳过 ")
+            results = b'' 
+            break
         random_seed = random.randint(0, 2**32 - 1)
         endpoints = random.choice(generate_url)
         ply_endpoint = ["http://127.0.0.1:10006","http://127.0.0.1:10007"]
@@ -151,6 +156,7 @@ async def _complete_one_task(
         compressed_results = base64.b64encode(results).decode(encoding="utf-8")
         vail_url = ["http://127.0.0.1:20000","http://127.0.0.1:20001"]
         validation_res = await validate(random.choice(vail_url), prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
+        cs = cs + 1
         if validation_res is not None:
             if validator_uid == 49:
                 if validation_res.score >= 0.79999:
