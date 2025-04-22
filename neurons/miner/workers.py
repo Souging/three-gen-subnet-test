@@ -44,8 +44,16 @@ def mp4_to_bytes_open(file_path):
     print(f"Error reading file: {e}")
     return None
 
+
+async def worker_routine(
+    endpoint: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
+) -> None:
+    #bt.logging.info(f"Worker ({endpoint}) started")
+    while True:
+        await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
+
+
 def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) -> str:
-    """同步调用 gradio_client 生成图片"""
     #client = Client(endpoint)
     try:
         return client.predict(
@@ -62,27 +70,19 @@ def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) ->
         client.close()
 
 def _call_gradio_client_image_to_3d(endpoint: str, image_path: str, seed: int,client: Client) -> str:
-    """同步调用 gradio_client 生成 3D 模型"""
     #client = Client(endpoint)
     try:
         return client.predict(
             image=handle_file(image_path),
             seed=seed,
             ss_guidance_strength=8.5,
-            ss_sampling_steps=14,
+            ss_sampling_steps=12,
             slat_guidance_strength=3.5,
-            slat_sampling_steps=14,
+            slat_sampling_steps=12,
             api_name="/image_to_3d"
         )
     finally:
         client.close()
-async def worker_routine(
-    endpoint: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
-) -> None:
-    #bt.logging.info(f"Worker ({endpoint}) started")
-    while True:
-        await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
-
 
 async def _complete_one_task(
     generate_url: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
@@ -100,7 +100,7 @@ async def _complete_one_task(
         if pull.dendrite.status_code != 200:
             bt.logging.warning(f"validator_uid :{validator_uid} Failed to get task. Reason: {pull.dendrite.status_message}.")
             if pull.cooldown_until == 0:
-                validator_selector.set_cooldown(validator_uid, int(time.time()) + 120)
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 20)
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
             return
@@ -108,7 +108,7 @@ async def _complete_one_task(
     if pull.task is None:
         if pull.cooldown_until == 0:
             bt.logging.warning(f"vali_uid :{validator_uid}  Failed to get task. Reason: Unknown.")
-            validator_selector.set_cooldown(validator_uid, int(time.time()) + 120)
+            validator_selector.set_cooldown(validator_uid, int(time.time()) + 20)
         else:
             cooldown_left = max(0, int(pull.cooldown_until - time.time()))
             bt.logging.debug(
@@ -123,7 +123,7 @@ async def _complete_one_task(
         random_seed = random.randint(0, 2**32 - 1)
         endpoints = random.choice(generate_url)
         try:
-            # 将同步阻塞的 gradio_client 调用放到线程池执行
+            
             client = Client(endpoints)
             images = await asyncio.to_thread(
                 _call_gradio_client,
@@ -147,11 +147,17 @@ async def _complete_one_task(
         results = mp4_to_bytes_open(vresult)
         os.remove(vresult)
         compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://999.999.999.999:62638", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
+        validation_res = await validate("http://127.0.0.1:9000", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
         if validation_res is not None:
-            if validation_res.score >= 0.81999:
-                bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.82 跳出循环提交...")
-                break
+            if validator_uid == 49:
+                if validation_res.score >= 0.749:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.75 跳出循环提交...")
+                    break
+            else:
+
+                if validation_res.score >= 0.7999:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.8 跳出循环提交...")
+                    break
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
     
@@ -174,7 +180,7 @@ async def _pull_task(dendrite: bt.dendrite, metagraph: bt.metagraph, validator_u
     response = typing.cast(
         PullTask,
         await dendrite.call(
-            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=15.0
+            target_axon=metagraph.axons[validator_uid], synapse=synapse, deserialize=False, timeout=10.0
         ),
     )
     return response
