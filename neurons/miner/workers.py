@@ -115,14 +115,17 @@ async def _complete_one_task(
                 f"vali_uid :{validator_uid}  Miner 在冷却期 : {cooldown_left} sec. "
                 f"总冷却次数: {pull.cooldown_violations}"
             )
-            validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
+            if cooldown_left >= 500:
+                validator_selector.set_cooldown(validator_uid, int(time.time()) + 100)
+            else:
+                validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
 
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
     cs = 0
     while True:
-        if cs == 4:
-            bt.logging.debug(f"vali_uid :{validator_uid} 超过3次低分，跳过 ")
+        if cs >= 6:
+            bt.logging.debug(f"vali_uid :{validator_uid} 超过6次低分，跳过 ")
             results = b'' 
             break
         random_seed = random.randint(0, 2**32 - 1)
