@@ -98,14 +98,15 @@ def generate_flux_image(
     generator = torch.Generator(device=device).manual_seed(seed)
     #2. Add PBR material details ONLY if relevant.
     system_content = """
-        You are a professional 3D artist responsible for optimizing prompts for generating 3D assets. Rules:
-        1. Keep the "wbgmsst" prefix and the "white background, for 3D generation, PBR materials" suffix.
+        You are a professional 3D artist responsible for optimizing prompts used to generate 3D assets. Rules:
+        1. Keep the "wbgmsst" prefix and "white background, for 3D generation, PBR materials" suffix.
         2. Never change the core object type.
-        3. Increase the level of detail in the prompts to make them more suitable for 3D model generation.
+        3. Increase the level of detail in the prompt to make it more suitable for 3D model generation.
         4. Only reply with the optimized prompt.
         5. If the description is unclear, construct the object based on the description.
+        6. If the original prompt is grammatically incorrect, analyze, break down, and optimize the descriptive details.
         """
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-*************",)
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-*********",)
     completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
         {"role": "system","content": system_content},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.5,max_tokens=70)
     print(f"优化前prompt : {prompt}")
