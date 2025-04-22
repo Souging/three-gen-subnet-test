@@ -133,7 +133,7 @@ async def _complete_one_task(
                 random_seed,
                 client
             )
-            client = Client(random.choice(endpoints))
+            client = Client(random.choice(ply_endpoint))
             random_seed = random.randint(0, 2**32 - 1)
             vresult = await asyncio.to_thread(
                 _call_gradio_client_image_to_3d,
