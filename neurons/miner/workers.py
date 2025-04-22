@@ -62,8 +62,8 @@ def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) ->
             randomize_seed=True,
             width=512,
             height=512,
-            guidance_scale=8.0,
-            num_inference_steps=8,
+            guidance_scale=8.5,
+            num_inference_steps=12,
             api_name="/generate_flux_image"
         )
     finally:
@@ -124,7 +124,7 @@ async def _complete_one_task(
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回. Prompt: {pull.task.prompt}.")
     cs = 0
     while True:
-        if cs >= 6:
+        if cs >= 8:
             bt.logging.debug(f"vali_uid :{validator_uid} 超过6次低分，跳过 ")
             results = b'' 
             break
@@ -163,12 +163,12 @@ async def _complete_one_task(
         if validation_res is not None:
             if validator_uid == 49:
                 if validation_res.score >= 0.74999:
-                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.74 跳出循环提交...")
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.75 跳出循环提交...")
                     break
             else:
 
-                if validation_res.score >= 0.79999:
-                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.8 跳出循环提交...")
+                if validation_res.score >= 0.81999:
+                    bt.logging.debug(f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 分数大于0.82 跳出循环提交...")
                     break
 
     #bt.logging.debug(f"video received. path: {vresult}. len: {len(results)}")
