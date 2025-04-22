@@ -12,6 +12,7 @@ from diffusers import DiffusionPipeline
 os.environ['SPCONV_ALGO'] = 'native'
 from typing import *
 import torch
+import time
 import numpy as np
 import imageio
 from easydict import EasyDict as edict
@@ -78,7 +79,6 @@ def unpack_state(state: dict) -> Tuple[Gaussian, edict]:
 def get_seed(randomize_seed: bool, seed: int) -> int:
     return np.random.randint(0, MAX_SEED) if randomize_seed else seed
 
-#@spaces.GPU
 def generate_flux_image(
     prompt: str,
     seed: int,
@@ -92,6 +92,7 @@ def generate_flux_image(
     progress: gr.Progress = gr.Progress(track_tqdm=True),
 ) -> Image.Image:
     """Generate image using Flux pipeline"""
+    start_time = time.time()
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
     generator = torch.Generator(device=device).manual_seed(seed)
@@ -104,7 +105,7 @@ def generate_flux_image(
         4. Only reply with the optimized prompt.
         5. If the description is unclear, construct the object based on the description.
         """
-    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-************",)
+    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="sk-or-v1-*************",)
     completion = client.chat.completions.create(model="deepseek/deepseek-chat-v3-0324",messages=[
         {"role": "system","content": system_content},{"role": "user","content": f"Optimize this prompt for 3D generation: {prompt}"}],temperature=0.5,max_tokens=70)
     print(f"优化前prompt : {prompt}")
@@ -128,6 +129,10 @@ def generate_flux_image(
     filename = f"{timestamp}_{unique_id}.png"
     filepath = os.path.join(user_dir, filename)
     image.save(filepath)
+    end_time = time.time()
+    total_time = end_time - start_time
+    print(f"总用时: {total_time:.4f} 秒")
+    torch.cuda.empty_cache()
     return image
 
 #@spaces.GPU
@@ -140,6 +145,7 @@ def image_to_3d(
     slat_sampling_steps: int,
     req: gr.Request,
 ) -> Tuple[dict, str]:
+    start_time = time.time()
     user_dir = os.path.join(TMP_DIR, str(req.session_hash))
     outputs = trellis_pipeline.run(
         image,
@@ -160,23 +166,11 @@ def image_to_3d(
     with open(ply_path, "wb") as f:
         gaussian_data.save_ply(f)
     state = pack_state(outputs['gaussian'][0],outputs['mesh'][0])
+    end_time = time.time()
+    total_time = end_time - start_time
+    print(f"总用时: {total_time:.4f} 秒")
     torch.cuda.empty_cache()
     return state, ply_path
-
-#@spaces.GPU(duration=90)
-def extract_glb(
-    state: dict,
-    mesh_simplify: float,
-    texture_size: int,
-    req: gr.Request,
-) -> Tuple[str, str]:
-    user_dir = os.path.join(TMP_DIR, str(req.session_hash))
-    gs, mesh = unpack_state(state)
-    glb = postprocessing_utils.to_glb(gs, mesh, simplify=mesh_simplify, texture_size=texture_size, verbose=False)
-    glb_path = os.path.join(user_dir, 'sample.glb')
-    glb.export(glb_path)
-    torch.cuda.empty_cache()
-    return glb_path, glb_path
 
 # Interfaz Gradio
 with gr.Blocks() as demo:
@@ -200,7 +194,7 @@ with gr.Blocks() as demo:
                     height = gr.Slider(512, 1024, label="Height", value=1024, step=16)
                 with gr.Row():
                     guidance_scale = gr.Slider(0.0, 10.0, label="Guidance Scale", value=3.5, step=0.1)
-                    num_inference_steps = gr.Slider(8, 200, label="num_inference_steps", value=8, step=2)
+                    num_inference_steps = gr.Slider(6, 200, label="num_inference_steps", value=8, step=2)
             # Botones separados
             generate_image_btn = gr.Button("Generar Imagen")
             generate_video_btn = gr.Button("Generar Video", interactive=False)
@@ -208,14 +202,7 @@ with gr.Blocks() as demo:
             generated_image = gr.Image(label="Generated Asset", type="pil")
             ply_viewer = gr.Model3D(label="3D Point Cloud") 
             #video_output = gr.Video(label="Generated 3D Asset", autoplay=True, loop=True)
-        model_output = LitModel3D(label="Extracted GLB", exposure=8.0, height=400)
-    
-    with gr.Row():
-        extract_glb_btn = gr.Button("Extract GLB", interactive=False)
-    
-    with gr.Row():
-        download_glb = gr.DownloadButton(label="Download GLB", interactive=False)
-    
+
     # Variables adicionales para la generación 3D
     with gr.Accordion("3D Generation Settings", open=False):
         gr.Markdown("Stage 1: Sparse Structure Generation")
@@ -226,11 +213,6 @@ with gr.Blocks() as demo:
         with gr.Row():
             slat_guidance_strength = gr.Slider(0.0, 10.0, label="Guidance Strength", value=3.0, step=0.1)
             slat_sampling_steps = gr.Slider(1, 50, label="Sampling Steps", value=12, step=1)
-    
-    # Variables para la extracción de GLB
-    with gr.Accordion("GLB Extraction Settings", open=False):
-        mesh_simplify = gr.Slider(0.9, 0.98, label="Simplify", value=0.95, step=0.01)
-        texture_size = gr.Slider(512, 2048, label="Texture Size", value=1024, step=512)
     
     output_buf = gr.State()
     
@@ -268,65 +250,41 @@ with gr.Blocks() as demo:
             slat_sampling_steps
         ],
         outputs=[output_buf, ply_viewer],
-    ).then(
-        lambda: gr.Button(interactive=True),
-        outputs=[extract_glb_btn],
     )
     
-    ply_viewer.clear(
-        lambda: gr.Button(interactive=False),
-        outputs=[extract_glb_btn],
-    )
-    
-    # Extraer GLB
-    extract_glb_btn.click(
-        extract_glb,
-        inputs=[output_buf, mesh_simplify, texture_size],
-        outputs=[model_output, download_glb],
-    ).then(
-        lambda: gr.Button(interactive=True),
-        outputs=[download_glb],
-    )
-    
-    model_output.clear(
-        lambda: gr.Button(interactive=False),
-        outputs=[download_glb],
-    )
-
 # Initialize both pipelines
 if __name__ == "__main__":
     from diffusers import FluxTransformer2DModel, FluxPipeline, BitsAndBytesConfig, GGUFQuantizationConfig
     from transformers import T5EncoderModel, BitsAndBytesConfig as BitsAndBytesConfigTF
     parser = argparse.ArgumentParser(description="Gradio app with command-line port argument")
     parser.add_argument("--port", type=int, default=8000, help="Port to run the Gradio app on")
+    parser.add_argument("--model", type=str, default="img", help="img or ply")
     args = parser.parse_args()
     port = args.port
+    model  = args.model
     # Initialize Flux pipeline
     device = "cuda" if torch.cuda.is_available() else "cpu"
     huggingface_token = os.getenv("HUGGINGFACE_TOKEN")
     dtype = torch.bfloat16
-    file_url = "https://huggingface.co/gokaygokay/flux-game/blob/main/hyperflux_00001_.q8_0.gguf"
-    file_url = file_url.replace("/resolve/main/", "/blob/main/").replace("?download=true", "")
-    single_file_base_model = "camenduru/FLUX.1-dev-diffusers"
-    quantization_config_tf = BitsAndBytesConfigTF(load_in_8bit=True, bnb_8bit_compute_dtype=torch.bfloat16)
-    text_encoder_2 = T5EncoderModel.from_pretrained(single_file_base_model, subfolder="text_encoder_2", torch_dtype=dtype, config=single_file_base_model, quantization_config=quantization_config_tf, token=huggingface_token)
+    if model == "img":
+        file_url = "https://huggingface.co/gokaygokay/flux-game/blob/main/hyperflux_00001_.q8_0.gguf"
+        file_url = file_url.replace("/resolve/main/", "/blob/main/").replace("?download=true", "")
+        single_file_base_model = "camenduru/FLUX.1-dev-diffusers"
+        quantization_config_tf = BitsAndBytesConfigTF(load_in_8bit=True, bnb_8bit_compute_dtype=torch.bfloat16)
+        text_encoder_2 = T5EncoderModel.from_pretrained(single_file_base_model, subfolder="text_encoder_2", torch_dtype=dtype, config=single_file_base_model, quantization_config=quantization_config_tf, token=huggingface_token)
     
-    if ".gguf" in file_url:
-        transformer = FluxTransformer2DModel.from_single_file(file_url, subfolder="transformer", quantization_config=GGUFQuantizationConfig(compute_dtype=dtype), torch_dtype=dtype, config=single_file_base_model)
+        if ".gguf" in file_url:
+            transformer = FluxTransformer2DModel.from_single_file(file_url, subfolder="transformer", quantization_config=GGUFQuantizationConfig(compute_dtype=dtype), torch_dtype=dtype, config=single_file_base_model)
+        else:
+            quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.bfloat16, token=huggingface_token)
+            transformer = FluxTransformer2DModel.from_single_file(file_url, subfolder="transformer", torch_dtype=dtype, config=single_file_base_model, quantization_config=quantization_config, token=huggingface_token)
+    
+        flux_pipeline = FluxPipeline.from_pretrained(single_file_base_model, transformer=transformer, text_encoder_2=text_encoder_2, torch_dtype=dtype, token=huggingface_token)
+        flux_pipeline.to("cuda")
     else:
-        quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.bfloat16, token=huggingface_token)
-        transformer = FluxTransformer2DModel.from_single_file(file_url, subfolder="transformer", torch_dtype=dtype, config=single_file_base_model, quantization_config=quantization_config, token=huggingface_token)
+        # Initialize Trellis pipeline
+        trellis_pipeline = TrellisImageTo3DPipeline.from_pretrained("cavargas10/TRELLIS")
+        trellis_pipeline.cuda()
     
-    flux_pipeline = FluxPipeline.from_pretrained(single_file_base_model, transformer=transformer, text_encoder_2=text_encoder_2, torch_dtype=dtype, token=huggingface_token)
-    flux_pipeline.to("cuda")
-    
-    # Initialize Trellis pipeline
-    trellis_pipeline = TrellisImageTo3DPipeline.from_pretrained("cavargas10/TRELLIS")
-    trellis_pipeline.cuda()
-    
-    try:
-        trellis_pipeline.preprocess_image(Image.fromarray(np.zeros((512, 512, 3), dtype=np.uint8)))
-    except:
-        pass
     
     demo.launch(show_error=True,server_name="0.0.0.0",server_port=port)
