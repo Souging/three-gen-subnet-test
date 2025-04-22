@@ -49,7 +49,7 @@ def read_config() -> bt.config:
         nargs="*",
         help="Specifies the URL of the endpoint responsible for generating 3D assets. "
         "This endpoint should handle the /generation/ POST route.",
-        default=["http://127.0.0.1:8093"],
+        default=["http://127.0.0.1:10000","http://127.0.0.1:10001","http://127.0.0.1:10002","http://127.0.0.1:10003","http://127.0.0.1:10004","http://127.0.0.1:10005"],
     )
 
     return bt.config(parser)
