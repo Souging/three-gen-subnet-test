@@ -147,6 +147,7 @@ def image_to_3d(
 ) -> Tuple[dict, str]:
     start_time = time.time()
     user_dir = os.path.join(TMP_DIR, str(req.session_hash))
+    os.makedirs(user_dir, exist_ok=True)  
     outputs = trellis_pipeline.run(
         image,
         seed=seed,
