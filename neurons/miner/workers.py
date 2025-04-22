@@ -63,7 +63,7 @@ def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) ->
             width=512,
             height=512,
             guidance_scale=8.0,
-            num_inference_steps=10,
+            num_inference_steps=12,
             api_name="/generate_flux_image"
         )
     finally:
