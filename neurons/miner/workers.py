@@ -122,6 +122,7 @@ async def _complete_one_task(
     while True:
         random_seed = random.randint(0, 2**32 - 1)
         endpoints = random.choice(generate_url)
+        ply_endpoint = ["http://127.0.0.1:10006","http://127.0.0.1:10007"]
         try:
             
             client = Client(endpoints)
@@ -132,6 +133,7 @@ async def _complete_one_task(
                 random_seed,
                 client
             )
+            client = Client(random.choice(endpoints))
             random_seed = random.randint(0, 2**32 - 1)
             vresult = await asyncio.to_thread(
                 _call_gradio_client_image_to_3d,
@@ -146,8 +148,9 @@ async def _complete_one_task(
         os.remove(images)
         results = mp4_to_bytes_open(vresult)
         os.remove(vresult)
-        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
-        validation_res = await validate("http://127.0.0.1:9000", prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
+        compressed_results = base64.b64encode(results).decode(encoding="utf-8")
+        vail_url = ["http://127.0.0.1:20000","http://127.0.0.1:20001"]
+        validation_res = await validate(random.choice(vail_url), prompt=pull.task.prompt,results=compressed_results,uid=validator_uid)
         if validation_res is not None:
             if validator_uid == 49:
                 if validation_res.score >= 0.749:
@@ -199,7 +202,7 @@ async def validate(
                 json={
                     "prompt": prompt,
                     "data": data,
-                    "compression": 2,
+                    "compression": 0,
                     "generate_preview": storage_enabled,
                     "preview_score_threshold": validation_score_threshold - 0.1,
                 },
