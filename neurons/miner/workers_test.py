@@ -11,6 +11,7 @@ from typing import Optional
 import pyspz
 from openai import OpenAI
 import random
+import aiofiles
 import os
 from aiohttp import ClientTimeout
 from aiohttp.helpers import sentinel
@@ -23,20 +24,6 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 FAILED_VALIDATOR_DELAY = 301
 
 #/tmp/gradio
-
-
-def mp4_to_bytes_open(file_path):
-  try:
-    with open(file_path, 'rb') as f:
-      video_bytes = f.read()
-    return video_bytes
-  except FileNotFoundError:
-    print(f"Error: File not found at {file_path}")
-    return None
-  except Exception as e:
-    print(f"Error reading file: {e}")
-    return None
-
 
 async def worker_routine(
     endpoint: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
@@ -117,8 +104,8 @@ async def _complete_one_task(
             ply_path = await async_gradio_client(endpoint, pull.task.prompt)
             if not ply_path:
               return None, None
-            with open(ply_path, 'rb') as file:
-                ply_bytes = file.read()
+            async with aiofiles.open(ply_path, 'rb') as file:
+                ply_bytes = await file.read()
             os.remove(ply_path)
             compresseds = base64.b64encode(pyspz.compress(ply_bytes, workers=-1)).decode(encoding="utf-8")
             vail_url = ["http://127.0.0.1:20000", "http://127.0.0.1:20001"]
