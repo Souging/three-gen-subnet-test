@@ -5,7 +5,6 @@ import typing
 import pydantic
 import urllib.parse
 from pydantic import BaseModel, Field
-from gradio_client import Client, handle_file
 import aiohttp
 import bittensor as bt
 from typing import Optional
@@ -47,24 +46,33 @@ async def worker_routine(
         await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
 
 
-def _call_gradio_client(endpoint: str, prompt: str) -> str:
-    try:
-        client = Client(endpoint)
-        seed=random.randint(0, 2**32 - 1)
-        return client.predict(
-            prompt=prompt,
-            seed=seed,
-            ss_guidance_strength=6.5,
-            ss_sampling_steps=20,
-            slat_guidance_strength=4.0,
-            slat_sampling_steps=16,
-            api_name="/text_to_3d"
-        )
-    except Exception as e:
-        bt.logging.error(f"生成错误 在 {endpoint} : {e}")
-    finally:
-        client.close()
-
+async def async_gradio_client(endpoint: str, prompt: str):
+    url = f"{endpoint}/api/text_to_3d"
+    headers = {"Content-type": "application/json"}
+    seed=random.randint(0, 2**32 - 1)
+    data = {
+        "data": [
+          prompt,
+          seed,
+          6.5, 
+          20, 
+          4.0, 
+          16
+        ],
+        "fn_index": 3  
+    }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, data=json.dumps(data), headers=headers) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return result["data"][1]["video"]["path"]
+                else:
+                    bt.logging.error(f"Gradio API 错误: [{response.status}] {response.reason}")
+                    return None
+        except aiohttp.ClientError as e:
+            bt.logging.error(f"连接错误: {e}")
+            return None
 async def _complete_one_task(
     generate_url: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
@@ -108,13 +116,9 @@ async def _complete_one_task(
         try:
             client = Client(endpoint)
             random_seed = random.randint(0, 2**32 - 1)
-            ply_path = await asyncio.to_thread(
-                _call_gradio_client,
-                endpoint,
-                pull.task.prompt,
-                random_seed,
-                client
-            )
+            ply_path = await async_gradio_client(endpoint, pull.task.prompt, random_seed)
+            if not ply_path:
+              return None, None
             with open(ply_path, 'rb') as file:
                 ply_bytes = file.read()
             os.remove(ply_path)
