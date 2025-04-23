@@ -248,26 +248,3 @@ def _log_feedback(validator_uid: int, submit: SubmitResults) -> None:
         )
 
     
-
-
-async def _generate(generate_url: str, prompt: str, timeout: float | None = None) -> bytes | None:  # noqa: ASYNC109
-    bt.logging.debug(f"Generating for prompt: {prompt} with timeout {timeout} seconds")
-
-    client_timeout = ClientTimeout(total=timeout) if timeout is not None else sentinel
-    async with aiohttp.ClientSession(timeout=client_timeout) as session:
-        try:
-            async with session.post(generate_url, data={"prompt": prompt}) as response:
-                if response.status == 200:
-                    results = await response.read()
-                    bt.logging.debug(f"Generation completed. Size: {len(results)}")
-                    return results
-                else:
-                    bt.logging.error(f"Generation failed with code: {response.status}")
-        except aiohttp.ClientConnectorError:
-            bt.logging.error(f"Failed to connect to the endpoint. The endpoint might be inaccessible: {generate_url}.")
-        except TimeoutError:
-            bt.logging.error(f"The request to the endpoint timed out: {generate_url}")
-        except aiohttp.ClientError as e:
-            bt.logging.error(f"An unexpected client error occurred: {e} ({generate_url})")
-        except Exception as e:
-            bt.logging.error(f"An unexpected error occurred: {e} ({generate_url})")
