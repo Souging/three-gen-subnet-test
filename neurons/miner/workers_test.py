@@ -213,7 +213,8 @@ async def _submit_results(
     )
     signature = base64.b64encode(dendrite.keypair.sign(message)).decode(encoding="utf-8")
     if results:
-        compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
+        compressed_results = results
+        #compressed_results = base64.b64encode(pyspz.compress(results, workers=-1)).decode(encoding="utf-8")
         #compressed_results = base64.b64encode(results).decode(encoding="utf-8")
     else:
         compressed_results = ""  # Skipping task not to be penalized (same could be done for low quality results)
