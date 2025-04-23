@@ -53,8 +53,8 @@ async def worker_routine(
         await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
 
 
-def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) -> str:
-    #client = Client(endpoint)
+def _call_gradio_client(endpoint: str, prompt: str, seed: int) -> str:
+    client = Client(endpoint)
     try:
         return client.predict(
             prompt=prompt,
@@ -69,8 +69,8 @@ def _call_gradio_client(endpoint: str, prompt: str, seed: int,client: Client) ->
     finally:
         client.close()
 
-def _call_gradio_client_image_to_3d(endpoint: str, image_path: str, seed: int,client: Client) -> str:
-    #client = Client(endpoint)
+def _call_gradio_client_image_to_3d(endpoint: str, image_path: str, seed: int) -> str:
+    client = Client(endpoint)
     try:
         return client.predict(
             image=handle_file(image_path),
