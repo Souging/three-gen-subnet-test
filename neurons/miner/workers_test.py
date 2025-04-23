@@ -188,7 +188,7 @@ async def _submit_results(
     metagraph: bt.metagraph,
     validator_uid: int,
     pull: PullTask,
-    results: bytes,
+    results: str,
 ) -> SubmitResults:
     submit_time = time.time_ns()
     prompt = pull.task.prompt if pull.task is not None else None
