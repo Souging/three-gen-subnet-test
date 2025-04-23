@@ -114,9 +114,7 @@ async def _complete_one_task(
     validation_results = []
     async def generate_ply(endpoint):
         try:
-            client = Client(endpoint)
-            random_seed = random.randint(0, 2**32 - 1)
-            ply_path = await async_gradio_client(endpoint, pull.task.prompt, random_seed)
+            ply_path = await async_gradio_client(endpoint, pull.task.prompt)
             if not ply_path:
               return None, None
             with open(ply_path, 'rb') as file:
