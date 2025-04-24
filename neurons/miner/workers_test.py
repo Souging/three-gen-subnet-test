@@ -130,10 +130,7 @@ async def _complete_one_task(
                 ply_bytes = await file.read()
             os.remove(ply_path)
             compresseds = base64.b64encode(ply_bytes).decode(encoding="utf-8")
-            vail_url = [
-                "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002","http://127.0.0.1:20003",
-            "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008",
-            "http://127.0.0.1:20009","http://127.0.0.1:20010","http://127.0.0.1:20011","http://127.0.0.1:20012","http://127.0.0.1:20013"
+            vail_url = ["http://127.0.0.1:20010","http://127.0.0.1:20011","http://127.0.0.1:20012","http://127.0.0.1:20013"
             ]
             validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds)
             return validation_score,compresseds
@@ -157,8 +154,7 @@ async def _complete_one_task(
             compresseds = base64.b64encode(ply_bytes).decode(encoding="utf-8")
             vail_url = [
                 "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002","http://127.0.0.1:20003",
-            "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008",
-            "http://127.0.0.1:20009","http://127.0.0.1:20010","http://127.0.0.1:20011","http://127.0.0.1:20012","http://127.0.0.1:20013"
+            "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008"
             ]
             validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds)
             return validation_score,compresseds
@@ -178,8 +174,25 @@ async def _complete_one_task(
         if validation_score is not None and validation_score > best_score:
             best_score = validation_score
             best_results = compresseds
-    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最终得分:")
-    bt.logging.debug(f"{[score for score, _ in validation_results]}")
+    
+    if best_score <= 0.86:
+        bt.logging.debug(f"最佳得分  {best_score}  小于0.86 再试一次")
+        validation_results = []
+        selected_urls = random.sample(generate_url, 14)
+        tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
+        validation_results = await asyncio.gather(*tasks)
+        best_score2 = -1.0
+        best_results2 = None
+        for validation_score, compresseds in validation_results:
+            if validation_score is not None and validation_score > best_score2:
+                best_score2 = validation_score
+                best_results2 = compresseds
+        if best_score2 >= best_score:
+            best_score=best_score2
+            best_results = best_results2
+
+    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt}")
+    #bt.logging.debug(f"{[score for score, _ in validation_results]}")
     bt.logging.debug(f"最佳得分  {best_score}  开始提交")
     
     async with bt.dendrite(wallet=wallet) as dendrite:
@@ -212,8 +225,8 @@ async def validate(
     prompt = prompt  # type: ignore[union-attr]
     data = results
     validate_url = urllib.parse.urljoin(endpoint, "/validate_txt_to_3d_ply/")
-
-    async with aiohttp.ClientSession() as session:
+    timeout = aiohttp.ClientTimeout(total=20, connect=5, sock_read=15)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
             async with session.post(
                 validate_url,
