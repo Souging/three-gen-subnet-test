@@ -153,8 +153,7 @@ async def _complete_one_task(
             os.remove(ply_path)
             compresseds = base64.b64encode(ply_bytes).decode(encoding="utf-8")
             vail_url = [
-                "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002","http://127.0.0.1:20003",
-            "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008"
+                "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002", "http://127.0.0.1:20003"
             ]
             validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds)
             return validation_score,compresseds
@@ -166,8 +165,10 @@ async def _complete_one_task(
     default=[
             "http://127.0.0.1:10000","http://127.0.0.1:10001","http://127.0.0.1:10002","http://127.0.0.1:10003","http://127.0.0.1:10004","http://127.0.0.1:10005",
             "http://127.0.0.1:10006","http://127.0.0.1:10007","http://127.0.0.1:10008","http://127.0.0.1:10009","http://127.0.0.1:10010","http://127.0.0.1:10011","http://127.0.0.1:10012","http://127.0.0.1:10013",
+            "http://127.0.0.1:30000","http://127.0.0.1:30001","http://127.0.0.1:30002","http://127.0.0.1:30003","http://127.0.0.1:30004","http://127.0.0.1:30005","http://127.0.0.1:30006","http://127.0.0.1:30007",
+            "http://127.0.0.1:30009","http://127.0.0.1:30009","http://127.0.0.1:30010","http://127.0.0.1:30011","http://127.0.0.1:30012","http://127.0.0.1:30013"
             ]
-    selected_urls = random.sample(default, 14)
+    selected_urls = random.sample(default, 24)
     tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
     validation_results = await asyncio.gather(*tasks)
     
@@ -180,12 +181,12 @@ async def _complete_one_task(
     
     cs = 0
     while True:
-        if best_score <= 0.869:
-            if cs >=2:
+        if best_score <= 0.8799:
+            if cs >=1:
                 break
-            bt.logging.debug(f"最佳得分  {best_score}  小于0.87 再试一次")
+            bt.logging.debug(f"vali_uid :{validator_uid}  最佳得分  {best_score}  小于0.88 再试一次  Prompt: {pull.task.prompt} ")
             validation_results = []
-            selected_urls = random.sample(generate_url, 14)
+            selected_urls = random.sample(default, 24)
             tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
             validation_results = await asyncio.gather(*tasks)
             best_score2 = -1.0
@@ -201,9 +202,8 @@ async def _complete_one_task(
         else:
             break
 
-    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt}")
-    #bt.logging.debug(f"{[score for score, _ in validation_results]}")
-    bt.logging.debug(f"最佳得分  {best_score}  开始提交")
+    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最佳得分  {best_score}  开始提交")
+
     
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, best_results)
@@ -235,7 +235,7 @@ async def validate(
     prompt = prompt  # type: ignore[union-attr]
     data = results
     validate_url = urllib.parse.urljoin(endpoint, "/validate_txt_to_3d_ply/")
-    timeout = aiohttp.ClientTimeout(total=10, connect=2, sock_read=8)
+    timeout = aiohttp.ClientTimeout(total=25, connect=5, sock_read=20)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
             async with session.post(
