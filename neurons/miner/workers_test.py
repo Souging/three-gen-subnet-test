@@ -97,7 +97,7 @@ async def _complete_one_task(
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
 
-    bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回 开始多节点生成验证. Prompt: {pull.task.prompt}.")
+    bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回 Prompt: {pull.task.prompt} 开始多节点生成验证")
     validation_results = []
     async def generate_ply(endpoint):
         try:
@@ -108,20 +108,32 @@ async def _complete_one_task(
                 ply_bytes = await file.read()
             os.remove(ply_path)
             compresseds = base64.b64encode(pyspz.compress(ply_bytes, workers=-1)).decode(encoding="utf-8")
-            vail_url = ["http://127.0.0.1:20000", "http://127.0.0.1:20001"]
+            vail_url = [
+                "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002","http://127.0.0.1:20003",
+            "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008",
+            "http://127.0.0.1:20009","http://127.0.0.1:20010","http://127.0.0.1:20011","http://127.0.0.1:20012","http://127.0.0.1:20013"
+            ]
             validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds, uid=validator_uid)
             return validation_score,compresseds
         except Exception as e:
             bt.logging.error(f"Failed to connect to {endpoint}: {str(e)}")
             return None, None    
-    tasks = [generate_ply(endpoint) for endpoint in generate_url]
+    selected_urls = random.sample(generate_url, 10)
+    tasks = [generate_ply(endpoint) for endpoint in selected_urls]
     validation_results = await asyncio.gather(*tasks)
+    
     best_score = -1.0
     best_results = None
     for validation_score, compresseds in validation_results:
         if validation_score is not None and validation_score > best_score:
             best_score = validation_score
             best_results = compresseds
+    bt.logging.debug(
+        f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最终得分"
+        f"{[score for score, _ in validation_results]}"
+        f"最佳得分  {best_score}  开始提交"
+    )
+    
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, best_results)
         if submit.feedback is None:
