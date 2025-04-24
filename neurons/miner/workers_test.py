@@ -15,6 +15,7 @@ import random
 import aiofiles
 import os
 from aiohttp import ClientTimeout
+from gradio_client import Client, handle_file
 from aiohttp.helpers import sentinel
 from common.miner_license_consent_declaration import MINER_LICENSE_CONSENT_DECLARATION
 from common.protocol import PullTask, SubmitResults
@@ -32,6 +33,23 @@ async def worker_routine(
     #bt.logging.info(f"Worker ({endpoint}) started")
     while True:
         await _complete_one_task(endpoint, wallet, metagraph, validator_selector)
+
+
+def _call_gradio_client(endpoint: str, prompt: str) -> str:
+    client = Client(endpoint)
+    try:
+        seed=random.randint(0, 2**32 - 1)
+        return client.predict(
+            prompt=prompt,
+            seed=seed,
+            ss_guidance_strength=6.5,
+            ss_sampling_steps=20,
+            slat_guidance_strength=4.0,
+            slat_sampling_steps=16,
+            api_name="/text_to_3d"
+        )
+    finally:
+        client.close()
 
 
 async def async_gradio_client(endpoint: str, prompt: str):
@@ -61,6 +79,8 @@ async def async_gradio_client(endpoint: str, prompt: str):
         except aiohttp.ClientError as e:
             bt.logging.error(f"连接错误: {e}")
             return None
+
+
 async def _complete_one_task(
     generate_url: list[str], wallet: bt.wallet, metagraph: bt.metagraph, validator_selector: ValidatorSelector
 ) -> None:
@@ -103,12 +123,13 @@ async def _complete_one_task(
     async def generate_ply(endpoint):
         try:
             ply_path = await async_gradio_client(endpoint, pull.task.prompt)
+
             if not ply_path:
               return None, None
             async with aiofiles.open(ply_path, 'rb') as file:
                 ply_bytes = await file.read()
             os.remove(ply_path)
-            compresseds = base64.b64encode(pyspz.compress(ply_bytes, workers=-1)).decode(encoding="utf-8")
+            compresseds = base64.b64encode(ply_bytes).decode(encoding="utf-8")
             vail_url = [
                 "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002","http://127.0.0.1:20003",
             "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008",
@@ -119,8 +140,36 @@ async def _complete_one_task(
         except Exception as e:
             bt.logging.error(f"Failed to connect to {endpoint}: {str(e)}")
             return None, None    
-    selected_urls = random.sample(generate_url, 10)
-    tasks = [generate_ply(endpoint) for endpoint in selected_urls]
+    
+    async def generate_ply_test(endpoint):
+        try:
+            images = await asyncio.to_thread(
+                _call_gradio_client,
+                endpoint,
+                pull.task.prompt
+            )
+            ply_path = images["video"]
+            if not ply_path:
+              return None, None
+            async with aiofiles.open(ply_path, 'rb') as file:
+                ply_bytes = await file.read()
+            os.remove(ply_path)
+            compresseds = base64.b64encode(ply_bytes).decode(encoding="utf-8")
+            vail_url = [
+                "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002","http://127.0.0.1:20003",
+            "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008",
+            "http://127.0.0.1:20009","http://127.0.0.1:20010","http://127.0.0.1:20011","http://127.0.0.1:20012","http://127.0.0.1:20013"
+            ]
+            validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds)
+            return validation_score,compresseds
+        except Exception as e:
+            bt.logging.error(f"Failed to connect to {endpoint}: {str(e)}")
+            return None, None        
+    
+    
+    
+    selected_urls = random.sample(generate_url, 14)
+    tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
     validation_results = await asyncio.gather(*tasks)
     
     best_score = -1.0
@@ -129,11 +178,9 @@ async def _complete_one_task(
         if validation_score is not None and validation_score > best_score:
             best_score = validation_score
             best_results = compresseds
-    bt.logging.debug(
-        f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最终得分"
-        f"{[score for score, _ in validation_results]}"
-        f"最佳得分  {best_score}  开始提交"
-    )
+    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最终得分:")
+    bt.logging.debug(f"{[score for score, _ in validation_results]}")
+    bt.logging.debug(f"最佳得分  {best_score}  开始提交")
     
     async with bt.dendrite(wallet=wallet) as dendrite:
         submit = await _submit_results(wallet, dendrite, metagraph, validator_uid, pull, best_results)
@@ -173,7 +220,7 @@ async def validate(
                 json={
                     "prompt": prompt,
                     "data": data,
-                    "compression": 2,
+                    "compression": 0,
                     "generate_preview": storage_enabled,
                     "preview_score_threshold": validation_score_threshold - 0.1,
                 },
@@ -181,7 +228,7 @@ async def validate(
                 if response.status == 200:
                     data_dict = await response.json()
                     result = data_dict
-                    print(f"Validation score: {result['score']} | Prompt: {prompt}")
+                    #print(f"Validation score: {result['score']} | Prompt: {prompt}")
                     return result["score"]
                 else:
                     print(f"Validation failed: [{response.status}] {response.reason}")
@@ -217,7 +264,7 @@ async def _submit_results(
     else:
         compressed_results = ""  # Skipping task not to be penalized (same could be done for low quality results)
     synapse = SubmitResults(
-        task=pull.task, results=compressed_results, compression=2, submit_time=submit_time, signature=signature
+        task=pull.task, results=compressed_results, compression=0, submit_time=submit_time, signature=signature
     )
     response = typing.cast(
         SubmitResults,
