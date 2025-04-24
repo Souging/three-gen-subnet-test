@@ -163,8 +163,11 @@ async def _complete_one_task(
             return None, None        
     
     
-    
-    selected_urls = random.sample(generate_url, 14)
+    default=[
+            "http://127.0.0.1:10000","http://127.0.0.1:10001","http://127.0.0.1:10002","http://127.0.0.1:10003","http://127.0.0.1:10004","http://127.0.0.1:10005",
+            "http://127.0.0.1:10006","http://127.0.0.1:10007","http://127.0.0.1:10008","http://127.0.0.1:10009","http://127.0.0.1:10010","http://127.0.0.1:10011","http://127.0.0.1:10012","http://127.0.0.1:10013",
+            ]
+    selected_urls = random.sample(default, 14)
     tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
     validation_results = await asyncio.gather(*tasks)
     
@@ -175,21 +178,28 @@ async def _complete_one_task(
             best_score = validation_score
             best_results = compresseds
     
-    if best_score <= 0.86:
-        bt.logging.debug(f"最佳得分  {best_score}  小于0.86 再试一次")
-        validation_results = []
-        selected_urls = random.sample(generate_url, 14)
-        tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
-        validation_results = await asyncio.gather(*tasks)
-        best_score2 = -1.0
-        best_results2 = None
-        for validation_score, compresseds in validation_results:
-            if validation_score is not None and validation_score > best_score2:
-                best_score2 = validation_score
-                best_results2 = compresseds
-        if best_score2 >= best_score:
-            best_score=best_score2
-            best_results = best_results2
+    cs = 0
+    while True:
+        if best_score <= 0.869:
+            if cs >=2:
+                break
+            bt.logging.debug(f"最佳得分  {best_score}  小于0.87 再试一次")
+            validation_results = []
+            selected_urls = random.sample(generate_url, 14)
+            tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
+            validation_results = await asyncio.gather(*tasks)
+            best_score2 = -1.0
+            best_results2 = None
+            for validation_score, compresseds in validation_results:
+                if validation_score is not None and validation_score > best_score2:
+                    best_score2 = validation_score
+                    best_results2 = compresseds
+            if best_score2 >= best_score:
+                best_score= best_score2
+                best_results = best_results2
+            cs=cs+1
+        else:
+            break
 
     bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt}")
     #bt.logging.debug(f"{[score for score, _ in validation_results]}")
