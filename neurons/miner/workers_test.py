@@ -6,6 +6,7 @@ import pydantic
 import urllib.parse
 from pydantic import BaseModel, Field
 import aiohttp
+import json
 import bittensor as bt
 from typing import Optional
 import pyspz
@@ -113,7 +114,7 @@ async def _complete_one_task(
             "http://127.0.0.1:20004","http://127.0.0.1:20005","http://127.0.0.1:20006","http://127.0.0.1:20007","http://127.0.0.1:20008",
             "http://127.0.0.1:20009","http://127.0.0.1:20010","http://127.0.0.1:20011","http://127.0.0.1:20012","http://127.0.0.1:20013"
             ]
-            validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds, uid=validator_uid)
+            validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds)
             return validation_score,compresseds
         except Exception as e:
             bt.logging.error(f"Failed to connect to {endpoint}: {str(e)}")
