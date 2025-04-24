@@ -225,7 +225,7 @@ async def validate(
     prompt = prompt  # type: ignore[union-attr]
     data = results
     validate_url = urllib.parse.urljoin(endpoint, "/validate_txt_to_3d_ply/")
-    timeout = aiohttp.ClientTimeout(total=20, connect=5, sock_read=15)
+    timeout = aiohttp.ClientTimeout(total=10, connect=2, sock_read=8)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
             async with session.post(
