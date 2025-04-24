@@ -117,7 +117,7 @@ async def _complete_one_task(
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
-
+    stert_time = time.time()
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回 Prompt: {pull.task.prompt} 开始多节点生成验证")
     validation_results = []
     async def generate_ply(endpoint):
@@ -168,7 +168,7 @@ async def _complete_one_task(
             "http://127.0.0.1:30000","http://127.0.0.1:30001","http://127.0.0.1:30002","http://127.0.0.1:30003","http://127.0.0.1:30004","http://127.0.0.1:30005","http://127.0.0.1:30006","http://127.0.0.1:30007",
             "http://127.0.0.1:30009","http://127.0.0.1:30009","http://127.0.0.1:30010","http://127.0.0.1:30011","http://127.0.0.1:30012","http://127.0.0.1:30013"
             ]
-    selected_urls = random.sample(default, 24)
+    selected_urls = random.sample(default, 20)
     tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
     validation_results = await asyncio.gather(*tasks)
     
@@ -186,7 +186,7 @@ async def _complete_one_task(
                 break
             bt.logging.debug(f"vali_uid :{validator_uid}  最佳得分  {best_score}  小于0.88 再试一次  Prompt: {pull.task.prompt} ")
             validation_results = []
-            selected_urls = random.sample(default, 24)
+            selected_urls = random.sample(default, 20)
             tasks = [generate_ply_test(endpoint) for endpoint in selected_urls]
             validation_results = await asyncio.gather(*tasks)
             best_score2 = -1.0
@@ -201,8 +201,9 @@ async def _complete_one_task(
             cs=cs+1
         else:
             break
-
-    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最佳得分  {best_score}  开始提交")
+    end_time = time.time()
+    total_time = end_time - start_time
+    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最佳得分:{best_score} 用时:{total_time:.4f} 开始提交~")
 
     
     async with bt.dendrite(wallet=wallet) as dendrite:
@@ -235,7 +236,7 @@ async def validate(
     prompt = prompt  # type: ignore[union-attr]
     data = results
     validate_url = urllib.parse.urljoin(endpoint, "/validate_txt_to_3d_ply/")
-    timeout = aiohttp.ClientTimeout(total=25, connect=5, sock_read=20)
+    timeout = aiohttp.ClientTimeout(total=60, connect=10, sock_read=50)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
             async with session.post(
