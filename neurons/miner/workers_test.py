@@ -117,7 +117,7 @@ async def _complete_one_task(
             else:
                 validator_selector.set_cooldown(validator_uid, pull.cooldown_until)
         return
-    stert_time = time.time()
+    start_time = time.time()
     bt.logging.debug(f"vali_uid :{validator_uid}  获取任务返回 Prompt: {pull.task.prompt} 开始多节点生成验证")
     validation_results = []
     async def generate_ply(endpoint):
@@ -153,7 +153,10 @@ async def _complete_one_task(
             os.remove(ply_path)
             compresseds = base64.b64encode(ply_bytes).decode(encoding="utf-8")
             vail_url = [
-                "http://127.0.0.1:20000", "http://127.0.0.1:20001","http://127.0.0.1:20002", "http://127.0.0.1:20003"
+                "http://127.0.0.1:40000", "http://127.0.0.1:40001","http://127.0.0.1:40002", "http://127.0.0.1:40003","http://127.0.0.1:40004", "http://127.0.0.1:40005","http://127.0.0.1:40006", "http://127.0.0.1:40007",
+                "http://127.0.0.1:40008", "http://127.0.0.1:40009","http://127.0.0.1:40010", "http://127.0.0.1:40011","http://127.0.0.1:40012", "http://127.0.0.1:40013",
+                "http://127.0.0.1:50000", "http://127.0.0.1:50001","http://127.0.0.1:50002", "http://127.0.0.1:50003","http://127.0.0.1:50004", "http://127.0.0.1:50005","http://127.0.0.1:50006", "http://127.0.0.1:50007",
+                "http://127.0.0.1:50008", "http://127.0.0.1:50009","http://127.0.0.1:50010", "http://127.0.0.1:50011","http://127.0.0.1:50012", "http://127.0.0.1:50013",
             ]
             validation_score = await validate(random.choice(vail_url), prompt=pull.task.prompt, results=compresseds)
             return validation_score,compresseds
@@ -203,7 +206,7 @@ async def _complete_one_task(
             break
     end_time = time.time()
     total_time = end_time - start_time
-    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最佳得分:{best_score} 用时:{total_time:.4f} 开始提交~")
+    bt.logging.debug( f"vali_uid :{validator_uid} Prompt: {pull.task.prompt} 最佳得分:{best_score} 用时:{total_time:.1f}s 开始提交~")
 
     
     async with bt.dendrite(wallet=wallet) as dendrite:
