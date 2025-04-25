@@ -1,4 +1,4 @@
-<div align="center">
+
 install pm2
 ```commandline
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && source /root/.bashrc && nvm install node && npm install pm2@latest -g
