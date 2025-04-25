@@ -7,7 +7,9 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash 
 
    
 -------
-run  Models
+run  Models(Choose one)
+neurons/miner/workers.py corresponds to img_to_3d
+neurons/miner/workers_test.py corresponds to text_to_3d
 -------
 1.|-----image_to_3D
 
